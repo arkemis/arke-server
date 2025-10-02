@@ -29,6 +29,7 @@ defmodule ArkeServer.Mailer do
         receiver = Map.fetch!(opts, :to)
         subject = Map.get(opts, :subject, "")
         text = Map.get(opts, :text, "")
+        html = Map.get(opts, :html, "")
         attachments = Map.get(opts, :attachments, [])
         new()
         |> from(sender)
@@ -36,6 +37,7 @@ defmodule ArkeServer.Mailer do
         |> cc(cc)
         |> subject(subject)
         |> text_body(text)
+        |> html_body(html)
         |> add_attachments(attachments)
         |> parse_option(Map.to_list(opts))
       end
