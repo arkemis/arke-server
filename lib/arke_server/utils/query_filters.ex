@@ -189,11 +189,6 @@ defmodule ArkeServer.Utils.QueryFilters do
 
   defp parse_value(v, _operator), do: v
 
-  defp get_operator("or(" <> _rest), do: {:ok, :or}
-  defp get_operator("and(" <> _rest), do: {:ok, :and}
-
-  defp get_operator("not(" <> _rest), do: {:ok, :not}
-
   defp get_operator("eq(" <> _rest), do: {:ok, :eq}
   defp get_operator("contains(" <> _rest), do: {:ok, :contains}
   defp get_operator("icontains(" <> _rest), do: {:ok, :icontains}
