@@ -61,11 +61,11 @@ defmodule ArkeServer.Utils.QueryFilters do
   defp parse_node(conn, "not(" <> _ = str) do
     with {:ok, inner} <- extract_inner(str) do
       case parse_node(conn, inner) do
-        {:ok, %Filter{negate: negate} = filter} ->
-          {:ok, %Filter{filter | negate: !negate}}
+        {:ok, %Filter{} = filter} ->
+          {:ok, %Filter{filter | negate: true}}
 
-        {:ok, %BaseFilter{negate: negate} = bf} ->
-          {:ok, %BaseFilter{bf | negate: !negate}}
+        {:ok, %BaseFilter{} = bf} ->
+          {:ok, %BaseFilter{bf | negate: true}}
 
         error ->
           error
@@ -95,7 +95,7 @@ defmodule ArkeServer.Utils.QueryFilters do
 
     errors = Enum.filter(results, &match?({:error, _}, &1))
 
-    if length(errors) > 0 do
+    if errors != [] do
       {:error, Enum.flat_map(errors, fn {:error, msg} -> List.wrap(msg) end)}
     else
       filters = Enum.map(results, fn {:ok, filter} -> filter end)

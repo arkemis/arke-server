@@ -45,6 +45,11 @@ defmodule ArkeServer.Utils.QueryFiltersTest do
       assert {:ok, nil} = QueryFilters.get_from_string(@conn, nil)
     end
 
+    test "bare filter without wrapping and/or" do
+      assert {:ok, {:and, false, [%BaseFilter{operator: :eq, value: "hello"}]}} =
+               QueryFilters.get_from_string(@conn, "eq(string_support,hello)")
+    end
+
     test "isnull operator" do
       {:ok, {:and, false, [%BaseFilter{operator: :isnull}]}} =
         QueryFilters.get_from_string(@conn, "and(isnull(string_support))")
