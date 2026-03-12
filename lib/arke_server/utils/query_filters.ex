@@ -51,30 +51,34 @@ defmodule ArkeServer.Utils.QueryFilters do
   # Returns {:ok, %Filter{}} for logical groups (and/or),
   # {:ok, %BaseFilter{}} for comparison operators.
   defp parse_node(conn, "and(" <> _ = str) do
-    parse_logical_node(conn, extract_inner(str), :and)
+    with {:ok, inner} <- extract_inner(str), do: parse_logical_node(conn, inner, :and)
   end
 
   defp parse_node(conn, "or(" <> _ = str) do
-    parse_logical_node(conn, extract_inner(str), :or)
+    with {:ok, inner} <- extract_inner(str), do: parse_logical_node(conn, inner, :or)
   end
 
   defp parse_node(conn, "not(" <> _ = str) do
-    case parse_node(conn, extract_inner(str)) do
-      {:ok, %Filter{negate: negate} = filter} ->
-        {:ok, %Filter{filter | negate: !negate}}
+    with {:ok, inner} <- extract_inner(str) do
+      case parse_node(conn, inner) do
+        {:ok, %Filter{negate: negate} = filter} ->
+          {:ok, %Filter{filter | negate: !negate}}
 
-      {:ok, %BaseFilter{negate: negate} = bf} ->
-        {:ok, %BaseFilter{bf | negate: !negate}}
+        {:ok, %BaseFilter{negate: negate} = bf} ->
+          {:ok, %BaseFilter{bf | negate: !negate}}
 
-      error ->
-        error
+        error ->
+          error
+      end
     end
   end
 
   defp parse_node(conn, str) do
     case get_operator(str) do
       {:ok, operator} ->
-        format_parameter_and_value(conn, extract_inner(str), operator)
+        with {:ok, inner} <- extract_inner(str) do
+          format_parameter_and_value(conn, inner, operator)
+        end
 
       {:error, _} = error ->
         error
@@ -105,10 +109,14 @@ defmodule ArkeServer.Utils.QueryFilters do
   defp extract_inner(str) do
     case :binary.match(str, "(") do
       {pos, 1} ->
-        binary_part(str, pos + 1, byte_size(str) - pos - 2)
+        if String.ends_with?(str, ")") do
+          {:ok, binary_part(str, pos + 1, byte_size(str) - pos - 2)}
+        else
+          Error.create(:filter, "unbalanced parentheses in `#{str}`")
+        end
 
       :nomatch ->
-        str
+        {:ok, str}
     end
   end
 
