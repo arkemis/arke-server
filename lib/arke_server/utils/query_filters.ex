@@ -139,20 +139,20 @@ defmodule ArkeServer.Utils.QueryFilters do
   end
 
   defp format_parameter_and_value(conn, data, :isnull) do
-    get_condition(conn, data, :isnull, nil, false)
+    get_condition(conn, data, :isnull, nil)
   end
 
   defp format_parameter_and_value(conn, data, operator) do
     case String.split(data, ",", parts: 2) do
       [parameter_id, value] ->
-        get_condition(conn, parameter_id, operator, value, false)
+        get_condition(conn, parameter_id, operator, value)
 
       _ ->
         Error.create(:filter, "invalid value. Use `isnull()` operator to check null values")
     end
   end
 
-  defp get_condition(conn, parameter_id, operator, value, negate) do
+  defp get_condition(conn, parameter_id, operator, value) do
     project = conn.assigns[:arke_project]
 
     {parameter_id, path_ids} =
@@ -163,7 +163,7 @@ defmodule ArkeServer.Utils.QueryFilters do
     with {:ok, parameter} <- fetch_parameter(parameter_id, project),
          {:ok, path} <- get_path_parameters(path_ids, project) do
       {:ok,
-       QueryManager.condition(parameter, operator, parse_value(value, operator), negate, path)}
+       QueryManager.condition(parameter, operator, parse_value(value, operator), false, path)}
     else
       {:error, msg} -> {:error, msg}
     end
