@@ -123,19 +123,40 @@ defmodule ArkeServer.Utils.QueryFilters do
   # Split a string by commas at parenthesis depth 0, respecting nesting.
   # e.g. "eq(a,1),or(eq(b,2),eq(c,3))" -> ["eq(a,1)", "or(eq(b,2),eq(c,3))"]
   defp split_top_level(str) do
-    str
-    |> String.to_charlist()
-    |> Enum.reduce({[], [], 0}, fn
-      ?(, {parts, current, depth} -> {parts, [?( | current], depth + 1}
-      ?), {parts, current, depth} -> {parts, [?) | current], depth - 1}
-      ?,, {parts, current, 0} -> {[current |> Enum.reverse() |> List.to_string() | parts], [], 0}
-      char, {parts, current, depth} -> {parts, [char | current], depth}
-    end)
-    |> then(fn {parts, current, _} ->
-      [current |> Enum.reverse() |> List.to_string() | parts]
+    {parts, current, _depth} =
+      str
+      |> String.to_charlist()
+      |> Enum.reduce({[], [], 0}, &process_char/2)
+
+    parts
+    |> add_last_part(current)
+    |> Enum.reject(&(&1 == ""))
+  end
+
+  defp process_char(char, {parts, current, depth}) do
+    case char do
+      ?( ->
+        {parts, [char | current], depth + 1}
+
+      ?) ->
+        {parts, [char | current], depth - 1}
+
+      ?, when depth == 0 ->
+        part = current |> Enum.reverse() |> List.to_string()
+        {[part | parts], [], depth}
+
+      _ ->
+        {parts, [char | current], depth}
+    end
+  end
+
+  defp add_last_part(parts, current) do
+    last =
+      current
       |> Enum.reverse()
-      |> Enum.reject(&(&1 == ""))
-    end)
+      |> List.to_string()
+
+    [last | parts] |> Enum.reverse()
   end
 
   defp format_parameter_and_value(conn, data, :isnull) do
