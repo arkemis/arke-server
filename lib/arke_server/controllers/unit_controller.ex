@@ -18,7 +18,6 @@ defmodule ArkeServer.UnitController do
   # Openapi request definition
   use ArkeServer.Openapi.Spec, module: ArkeServer.Openapi.UnitControllerSpec
 
-
   alias Arke.{QueryManager, LinkManager, StructManager}
   alias Arke.Boundary.{ArkeManager, ParameterManager}
   alias UnitSerializer
@@ -31,13 +30,11 @@ defmodule ArkeServer.UnitController do
   import ArkeServer.ArkeController, only: [data_as_klist: 1]
 
   @doc """
-       Search units
-       """
+  Search units
+  """
   def search(conn, %{}) do
     project = conn.assigns[:arke_project]
-    offset = Map.get(conn.query_params, "offset", 0)
     limit = Map.get(conn.query_params, "limit", 100)
-    order = Map.get(conn.query_params, "order", [])
 
     {count, units} =
       QueryManager.query(project: project)
@@ -52,8 +49,8 @@ defmodule ArkeServer.UnitController do
   end
 
   @doc """
-       Update an unit
-       """
+  Update an unit
+  """
   def update(%Plug.Conn{body_params: params} = conn, %{
         "unit_id" => _unit_id,
         "arke_id" => _arke_id

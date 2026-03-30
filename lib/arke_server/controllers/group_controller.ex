@@ -25,7 +25,7 @@ defmodule ArkeServer.GroupController do
   alias Arke.Core.Unit
   alias Arke.Boundary.{ArkeManager, GroupManager}
   alias ArkeServer.ResponseManager
-  alias ArkeServer.Utils.{QueryFilters, QueryOrder}
+  alias ArkeServer.Utils.{QueryFilters, QueryProcessor}
 
   alias ArkeServer.Openapi.Responses
 
@@ -115,8 +115,7 @@ defmodule ArkeServer.GroupController do
       |> QueryFilters.apply_query_filters(Map.get(conn.assigns, :filter))
       |> QueryFilters.apply_query_filters(permission.filter)
       |> QueryFilters.apply_member_child_only(member, Map.get(permission, :child_only, false))
-      |> QueryOrder.apply_order(order)
-      |> QueryManager.pagination(offset, limit)
+      |> QueryProcessor.process_query(conn.query_params)
 
     ResponseManager.send_resp(conn, 200, %{
       count: count,

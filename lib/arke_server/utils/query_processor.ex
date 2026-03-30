@@ -12,30 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-defmodule ArkeServer.Utils.QueryOrder do
+defmodule ArkeServer.Utils.QueryProcessor do
   alias Arke.QueryManager
+  alias ArkeServer.Utils.{QueryOrder}
 
-  def apply_order(query, []), do: query
-  def apply_order(query, nil), do: query
+  def process_query(query, %{"count_only" => count_only})
+      when count_only in [true, "true", "True", "1"],
+      do: {QueryManager.count(query), nil}
 
-  def apply_order(query, [current | tail]) do
-    case String.split(current, ";") do
-      [parameter_id, direction] ->
-        parameters =
-          parameter_id
-          |> String.split(".")
-
-        apply_order(
-          QueryManager.order(query, parameters, String.to_existing_atom(direction)),
-          tail
-        )
-
-      _ ->
-        nil
-    end
-  end
-
-  def apply_order(query, order) do
-    apply_order(query, [order])
+  def process_query(query, opts) do
+    QueryOrder.apply_order(query, Map.get(opts, "order"))
+    |> QueryManager.pagination(Map.get(opts, "offset"), Map.get(opts, "limit"))
   end
 end

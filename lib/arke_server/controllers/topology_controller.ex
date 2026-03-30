@@ -12,7 +12,7 @@ defmodule ArkeServer.TopologyController do
   alias Arke.Utils.ErrorGenerator, as: Error
   alias UnitSerializer
   alias ArkeServer.ResponseManager
-  alias ArkeServer.Utils.{QueryFilters, QueryOrder}
+  alias ArkeServer.Utils.{QueryFilters, QueryProcessor}
   alias ArkeServer.Openapi.Responses
 
   alias OpenApiSpex.{Operation, Reference}
@@ -32,8 +32,7 @@ defmodule ArkeServer.TopologyController do
 
     {count, units} =
       handle_get_node_query(conn, direction)
-      |> QueryOrder.apply_order(order)
-      |> QueryManager.pagination(offset, limit)
+      |> QueryProcessor.process_query(conn.query_params)
 
     ResponseManager.send_resp(conn, 200, %{
       count: count,

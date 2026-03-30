@@ -26,7 +26,7 @@ defmodule ArkeServer.ArkeController do
   alias Arke.Boundary.ArkeManager
   alias UnitSerializer
   alias ArkeServer.ResponseManager
-  alias ArkeServer.Utils.{QueryFilters, QueryOrder, Permission}
+  alias ArkeServer.Utils.{QueryFilters,QueryOrder, QueryProcessor,Permission}
 
   alias ArkeServer.Openapi.Responses
 
@@ -116,8 +116,7 @@ defmodule ArkeServer.ArkeController do
 
     {count, units} =
       handle_get_all_unit_query(conn, id)
-      |> QueryOrder.apply_order(order)
-      |> QueryManager.pagination(offset, limit)
+      |> QueryProcessor.process_query(conn.query_params)
 
     ResponseManager.send_resp(conn, 200, %{
       count: count,
@@ -285,8 +284,7 @@ defmodule ArkeServer.ArkeController do
       QueryManager.query(project: project, arke: :group)
       |> QueryManager.link(arke, direction: :parent, type: "group")
       |> QueryFilters.apply_query_filters(Map.get(conn.assigns, :filter))
-      |> QueryOrder.apply_order(order)
-      |> QueryManager.pagination(offset, limit)
+      |> QueryProcessor.process_query(conn.query_params)
 
     ResponseManager.send_resp(conn, 200, %{
       count: count,
