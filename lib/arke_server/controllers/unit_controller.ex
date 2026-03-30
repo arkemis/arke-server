@@ -18,12 +18,11 @@ defmodule ArkeServer.UnitController do
   # Openapi request definition
   use ArkeServer.Openapi.Spec, module: ArkeServer.Openapi.UnitControllerSpec
 
-
   alias Arke.{QueryManager, LinkManager, StructManager}
   alias Arke.Boundary.{ArkeManager, ParameterManager}
   alias UnitSerializer
   alias ArkeServer.ResponseManager
-  alias ArkeServer.Utils.{QueryFilters, QueryProcessor}
+  alias ArkeServer.Utils.{QueryFilters, QueryOrder}
 
   alias(ArkeServer.Openapi.Responses)
   alias OpenApiSpex.{Operation, Reference}
@@ -31,8 +30,8 @@ defmodule ArkeServer.UnitController do
   import ArkeServer.ArkeController, only: [data_as_klist: 1]
 
   @doc """
-       Search units
-       """
+  Search units
+  """
   def search(conn, %{}) do
     project = conn.assigns[:arke_project]
     limit = Map.get(conn.query_params, "limit", 100)
@@ -40,7 +39,8 @@ defmodule ArkeServer.UnitController do
     {count, units} =
       QueryManager.query(project: project)
       |> QueryFilters.apply_query_filters(Map.get(conn.assigns, :filter))
-      |> QueryProcessor.process_query(%{conn.query_params | "limit" => limit})
+      |> QueryOrder.apply_order(order)
+      |> QueryManager.pagination(offset, limit)
 
     ResponseManager.send_resp(conn, 200, %{
       count: count,
@@ -49,8 +49,8 @@ defmodule ArkeServer.UnitController do
   end
 
   @doc """
-       Update an unit
-       """
+  Update an unit
+  """
   def update(%Plug.Conn{body_params: params} = conn, %{
         "unit_id" => _unit_id,
         "arke_id" => _arke_id
