@@ -12,22 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-defmodule ArkeServer.ErrorView do
+defmodule ArkeServer.Openapi.ProjectControllerSpec do
   @moduledoc """
-  Documentation for `ArkeServer.ErrorView`
+  Definition of the ApiSpec for `ArkeServer.ProjectController`.
   """
-  use ArkeServer, :view
 
-  # If you want to customize a particular status code
-  # for a certain format, you may uncomment below.
-  # def render("500.json", _assigns) do
-  #   %{errors: %{detail: "Internal Server Error"}}
-  # end
+  alias ArkeServer.Openapi.Responses
+  alias OpenApiSpex.{Operation, Reference}
 
-  # By default, Phoenix returns the status message from
-  # the template name. For example, "404.json" becomes
-  # "Not Found".
-  def template_not_found(template, _assigns) do
-    %{errors: %{detail: Phoenix.Controller.status_message_from_template(template)}}
-  end
+  #todo: all api operation for project
 end

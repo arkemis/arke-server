@@ -16,7 +16,7 @@ defmodule ArkeServer.Endpoint do
 
   @moduledoc """
              Module which define the Plug used for each call
-             """ && false
+             """
   use Phoenix.Endpoint, otp_app: :arke_server
 
   # The session will be stored in the cookie and signed,
@@ -51,7 +51,7 @@ defmodule ArkeServer.Endpoint do
   plug(Plug.Telemetry, event_prefix: [:phoenix, :endpoint])
 
   plug(Plug.Parsers,
-    parsers: [:urlencoded, :multipart, :json],
+    parsers: [:urlencoded, {:multipart, length: 40_000_000}, :json],
     pass: ["*/*"],
     json_decoder: Phoenix.json_library()
   )

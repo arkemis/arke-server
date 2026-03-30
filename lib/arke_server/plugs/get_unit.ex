@@ -14,10 +14,12 @@
 
 defmodule ArkeServer.Plugs.GetUnit do
   @moduledoc """
-             Plug to get a unit from the id in the url
-             """ && false
+  Plug to get a unit from the id in the url
+  """
   import Plug.Conn
   alias Arke.{QueryManager}
+  alias ArkeServer.Utils.{QueryFilters}
+  alias Arke.Core.Unit
 
   ## Once the project header has been set to mandatory retrieve it as follows:
   #  project = conn.assigns[:arke_project]
@@ -49,15 +51,17 @@ defmodule ArkeServer.Plugs.GetUnit do
   end
 
   defp get_unit(conn, project, arke_id, unit_id) do
-    try do
-      case QueryManager.get_by(project: project, arke: arke_id, id: unit_id) do
-        nil -> nil
-        unit -> unit
-      end
-    rescue
-      _ ->
-        not_found(conn)
-    end
+    permission = conn.assigns[:permission_filter] || %{filter: nil}
+    member = ArkeAuth.Guardian.get_member(conn, impersonate: true)
+
+    unit =
+      QueryManager.query(project: project, arke: arke_id)
+      |> QueryFilters.apply_query_filters(permission.filter)
+      |> QueryFilters.apply_member_child_only(member, Map.get(permission, :child_only, false))
+      |> QueryManager.where(id: unit_id)
+      |> QueryManager.one()
+
+    unit
   end
 
   def single_unit(
@@ -82,14 +86,11 @@ defmodule ArkeServer.Plugs.GetUnit do
     conn
   end
 
-  defp parse_unit(conn, unit) do
-    case unit do
-      nil ->
-        not_found(conn)
+  defp parse_unit(conn, nil), do: not_found(conn)
 
-      _ ->
-        assign(conn, :unit, unit)
-    end
+  defp parse_unit(conn, unit) do
+    parsed_unit = Unit.update(unit, runtime_data: %{conn: conn})
+    assign(conn, :unit, parsed_unit)
   end
 
   defp not_found(conn) do
