@@ -66,7 +66,7 @@ defmodule ArkeServer.MixProject do
       {:corsica, "~> 1.2"},
       {:ex_doc, "~> 0.28", only: :dev, runtime: false},
       {:open_api_spex, "~> 3.16"},
-      {:ymlr, "~> 2.0", only: :dev},
+      {:ymlr, "~> 5.1", only: :dev},
       {:excoveralls, "~> 0.10", only: :test},
       {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
       {:arke, "~> 0.6.0"},

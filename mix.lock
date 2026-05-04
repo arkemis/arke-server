@@ -74,5 +74,5 @@
   "websock": {:hex, :websock, "0.5.3", "2f69a6ebe810328555b6fe5c831a851f485e303a7c8ce6c5f675abeb20ebdadc", [:mix], [], "hexpm", "6105453d7fac22c712ad66fab1d45abdf049868f253cf719b625151460b8b453"},
   "websock_adapter": {:hex, :websock_adapter, "0.5.9", "43dc3ba6d89ef5dec5b1d0a39698436a1e856d000d84bf31a3149862b01a287f", [:mix], [{:bandit, ">= 0.6.0", [hex: :bandit, repo: "hexpm", optional: true]}, {:plug, "~> 1.14", [hex: :plug, repo: "hexpm", optional: false]}, {:plug_cowboy, "~> 2.6", [hex: :plug_cowboy, repo: "hexpm", optional: true]}, {:websock, "~> 0.5", [hex: :websock, repo: "hexpm", optional: false]}], "hexpm", "5534d5c9adad3c18a0f58a9371220d75a803bf0b9a3d87e6fe072faaeed76a08"},
   "xlsxir": {:hex, :xlsxir, "1.6.4", "d1e69439cbd9edc1190950f9f883ac364e1f31641e0395ccdb27761791b169a3", [:mix], [{:erlsom, "~> 1.5", [hex: :erlsom, repo: "hexpm", optional: false]}], "hexpm", "38e91f65eb8a4c8dea07d941c8b7e21baf8c8d4938232395c9ffd19d2eb071f2"},
-  "ymlr": {:hex, :ymlr, "2.0.0", "7525b6da40250777c35456017ef44f7faec06da254eafcf9f9cfb0d65f4c8cb7", [:mix], [], "hexpm", "f9301ad7ea377213b506f6e58ddffd1a7743e24238bb70e572ee510bdc2d1d5a"},
+  "ymlr": {:hex, :ymlr, "5.1.5", "0b9207c7940be3f2bc29b77cd55109d5aa2f4dcde6575942017335769e6f5628", [:mix], [], "hexpm", "7030cb240c46850caeb3b01be745307632be319b15f03083136f6251f49b516d"},
 }
