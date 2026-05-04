@@ -1,6 +1,6 @@
 # ArkeServer
 
-![Server](https://github.com/arkemishub/arke-server/assets/81776297/b9d0d119-2af8-4948-9b98-c68756d28897)
+![Server](https://github.com/arkemis/arke-server/assets/81776297/b9d0d119-2af8-4948-9b98-c68756d28897)
 
 To start your Phoenix server:
 
