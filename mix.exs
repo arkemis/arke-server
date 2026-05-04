@@ -63,7 +63,7 @@ defmodule ArkeServer.MixProject do
       {:jason, "~> 1.2"},
       {:plug_cowboy, "~> 2.5"},
       {:guardian, "~> 2.2.3"},
-      {:corsica, "~> 1.2"},
+      {:corsica, "~> 2.1"},
       {:ex_doc, "~> 0.28", only: :dev, runtime: false},
       {:open_api_spex, "~> 3.16"},
       {:ymlr, "~> 2.0", only: :dev},
