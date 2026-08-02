@@ -246,8 +246,7 @@ defmodule ArkeServer.UnitControllerTest do
     end
 
     test "lte", %{auth_conn: conn} = _context do
-      # FIXME: Float like 20 should be accepted
-      filter = "filter=or(lte(integer_support,10),lte(float_support,20))"
+      filter = "filter=or(lte(float_support,7),lte(integer_support,3))"
       conn = get(conn, "/lib/unit?#{filter}")
 
       json_body = json_response(conn, 200)
