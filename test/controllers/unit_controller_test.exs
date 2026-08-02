@@ -177,15 +177,15 @@ defmodule ArkeServer.UnitControllerTest do
     end
 
     test "in", %{auth_conn: conn} = _context do
-      # FIXME: support of in operator with numbers
-      filter = "filter=and(in(integer_support,(3,10)))"
+      filter = "filter=and(in(integer_support,(4,12)))"
 
       conn = get(conn, "/lib/unit?#{filter}")
 
       json_body = json_response(conn, 200)
+      items = json_body["content"]["items"]
 
-      param = List.first(json_body["content"]["items"])["integer_support"]
-      assert param >= 3 and param <= 10 == true
+      assert json_body["content"]["count"] > 0
+      assert Enum.all?(items, &(&1["integer_support"] in [4, 12]))
     end
 
     test "isnull", %{auth_conn: conn} = _context do
@@ -327,13 +327,14 @@ defmodule ArkeServer.UnitControllerTest do
     end
 
     test "in", %{auth_conn: conn} = _context do
-      # FIXME: list of values
-      filter = "filter=or(in(integer_support,(3,10)))"
+      filter = "filter=or(in(integer_support,(4,12)))"
       conn = get(conn, "/lib/unit?#{filter}")
 
       json_body = json_response(conn, 200)
-      param = List.first(json_body["content"]["items"])["integer_support"]
-      assert param >= 3 and param <= 10 == true
+      items = json_body["content"]["items"]
+
+      assert json_body["content"]["count"] > 0
+      assert Enum.all?(items, &(&1["integer_support"] in [4, 12]))
     end
 
     test "isnull", %{auth_conn: conn} = _context do
