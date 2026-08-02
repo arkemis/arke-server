@@ -6,17 +6,22 @@ defmodule ArkeServer.ArkeControllerTest do
   defp check_arke(_context) do
     ids = [
       :test_arke_group_ac,
+      :test_arke_group_ac2,
       :group_test_api_arke,
       :test_unit_arke_ac_1,
       :test_arke_link_ac_1,
       :test_unit_arke_ac_2,
       :test_arke_link_ac_2,
       :link_test_ac,
-      :api_string
+      :api_string,
+      :api_label,
+      :api_required
     ]
 
     delete_connection("group_test_api_arke", "test_arke_group_ac", "group")
     delete_connection("test_arke_group_ac", "api_string", "parameter")
+    delete_connection("test_arke_group_ac", "api_label", "parameter")
+    delete_connection("test_arke_group_ac2", "api_required", "parameter")
     delete_connection("test_unit_arke_ac_1", "test_unit_arke_ac_2", "link_test_ac")
 
     Enum.each(ids, fn id ->
@@ -35,8 +40,23 @@ defmodule ArkeServer.ArkeControllerTest do
       label: "Test arke group ac"
     })
 
+    QueryManager.create(:test_schema, arke_model, %{
+      id: "test_arke_group_ac2",
+      label: "Test arke group ac2"
+    })
+
     string = ArkeManager.get(:string, :arke_system)
     QueryManager.create(:test_schema, string, %{id: "api_string", label: "Api string"})
+    QueryManager.create(:test_schema, string, %{id: "api_label", label: "Api label"})
+
+    QueryManager.create(:test_schema, string, %{
+      id: "api_required",
+      label: "Api required",
+      required: true
+    })
+
+    LinkManager.add_node(:test_schema, "test_arke_group_ac", "api_label", "parameter")
+    LinkManager.add_node(:test_schema, "test_arke_group_ac2", "api_required", "parameter")
   end
 
   def delete_connection(parent, child, type, metadata \\ %{}) do
@@ -219,15 +239,15 @@ defmodule ArkeServer.ArkeControllerTest do
 
       QueryManager.create(:test_schema, arke_model, %{
         id: "unit_api_ac",
-        label: "Test Unit Api"
+        api_label: "Test Unit Api"
       })
 
-      conn = put(conn, "/lib/test_arke_group_ac/unit/unit_api_ac", %{label: "label edited"})
+      conn = put(conn, "/lib/test_arke_group_ac/unit/unit_api_ac", %{api_label: "label edited"})
       json_body = json_response(conn, 200)
 
       unit_db = QueryManager.get_by(id: :unit_api_ac, project: :test_schema)
 
-      assert unit_db.data.label == "label edited"
+      assert unit_db.data.api_label == "label edited"
     end
 
     test "error", %{auth_conn: conn} = _context do
