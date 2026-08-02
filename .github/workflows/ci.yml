@@ -62,8 +62,6 @@ jobs:
         run: mix hex.build
       - name: Run tests
         run: mix coveralls.json
-        # todo: remove after tests are added
-        continue-on-error: true
         env:
           MIX_ENV: test
           DB_HOSTNAME: postgres
