@@ -130,11 +130,13 @@ defmodule ArkeServer.ArkeControllerTest do
 
       res = json_response(conn, 200)
 
-      assert is_list(res["content"]["parameters"]) == true
-    end
+      assert res["content"]["count"] == 1
 
-    test "error" do
-      nil
+      assert is_nil(
+               Enum.find(res["content"]["items"], fn group ->
+                 group["id"] == "group_test_api_arke"
+               end)
+             ) == false
     end
   end
 
