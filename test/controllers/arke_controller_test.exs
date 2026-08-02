@@ -181,11 +181,12 @@ defmodule ArkeServer.ArkeControllerTest do
       check_db("unit_api_post")
 
       conn =
-        post(conn, "/lib/test_arke_group_ac/unit", %{id: "unit_api_post", label: "Test Unit Api"})
+        post(conn, "/lib/test_arke_group_ac/unit", %{id: "unit_api_post", api_label: "Test Unit Api"})
 
-      json_body = json_response(conn, 201)
+      json_body = json_response(conn, 200)
 
       assert json_body["content"]["id"] == "unit_api_post"
+      assert json_body["content"]["api_label"] == "Test Unit Api"
     end
 
     test "error", %{auth_conn: conn} = _context do
