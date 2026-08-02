@@ -24,7 +24,6 @@ defmodule ArkeServer.MixProject do
       aliases: aliases(),
       elixirc_paths: elixirc_paths(Mix.env()),
       elixirc_options: [warnings_as_errors: false],
-      test_coverage: [tool: ExCoveralls],
       versioning: versioning()
     ]
   end
@@ -67,7 +66,6 @@ defmodule ArkeServer.MixProject do
       {:ex_doc, "~> 0.28", only: :dev, runtime: false},
       {:open_api_spex, "~> 3.16"},
       {:ymlr, "~> 2.0", only: :dev},
-      {:excoveralls, "~> 0.10", only: :test},
       {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
       {:arke, "~> 0.6.0"},
       {:arke_postgres, "~> 0.5.0"},
