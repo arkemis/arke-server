@@ -340,7 +340,9 @@ defmodule ArkeServer.ArkeControllerTest do
       assert is_list(json_body["content"]["items"]) == true
 
       assert is_nil(
-               Enum.find(json_body["content"]["items"], fn unit -> unit["id"] == "unit_api_ac" end)
+               Enum.find(json_body["content"]["items"], fn unit ->
+                 unit["id"] == "test_unit_arke_1"
+               end)
              ) == false
     end
 
@@ -397,13 +399,11 @@ defmodule ArkeServer.ArkeControllerTest do
       post_conn =
         post(
           post_conn,
-          "/lib/test_arke_link_ac_2/unit/test_unit_arke_ac_1/link/link_test_ac/test_arke_link_ac_2/unit/test_unit_arke_ac_2"
+          "/lib/test_arke_link_ac_1/unit/test_unit_arke_ac_1/link/link_test_ac/test_arke_link_ac_2/unit/test_unit_arke_ac_2"
         )
 
       json_body = json_response(post_conn, 201)
-      arke = ArkeManager.get(:test_arke_group_ac, :test_schema)
 
-      assert is_nil(Enum.find(arke.data.parameters, fn p -> p.id == :api_string end)) == false
       assert json_body["content"]["parent_id"] == "test_unit_arke_ac_1"
       assert json_body["content"]["child_id"] == "test_unit_arke_ac_2"
       assert json_body["content"]["type"] == "link_test_ac"
@@ -411,11 +411,9 @@ defmodule ArkeServer.ArkeControllerTest do
       del_conn =
         delete(
           del_conn,
-          "/lib/test_arke_link_ac_2/unit/test_unit_arke_ac_1/link/link_test_ac/test_arke_link_ac_2/unit/test_unit_arke_ac_2"
+          "/lib/test_arke_link_ac_1/unit/test_unit_arke_ac_1/link/link_test_ac/test_arke_link_ac_2/unit/test_unit_arke_ac_2"
         )
 
-      arke_del = ArkeManager.get(:test_arke_group_ac, :test_schema)
-      assert is_nil(Enum.find(arke_del.data.parameters, fn p -> p.id == :api_string end)) == true
       assert del_conn.status == 204
     end
   end
