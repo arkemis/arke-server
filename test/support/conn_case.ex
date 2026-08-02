@@ -33,7 +33,7 @@ defmodule ArkeServer.ConnCase do
       import ArkeServer.ConnCase
 
       def build_authenticated_conn(user \\ get_user()) do
-        {:ok, token, _} = Guardian.encode_and_sign(user)
+        {:ok, token, _} = Guardian.encode_and_sign(get_member(user))
 
         Phoenix.ConnTest.build_conn()
         |> Plug.Conn.put_req_header("authorization", "Bearer #{token}")
@@ -44,23 +44,41 @@ defmodule ArkeServer.ConnCase do
         do: [
           username: username,
           password: "password",
-          type: "customer",
+          email: "#{username}@arke.test",
           first_name: "Test",
           last_name: "User"
         ]
 
       def get_user(username \\ "user_test") do
-        user = QueryManager.get_by(username: username, project: :arke_system)
+        user =
+          with nil <- QueryManager.get_by(username: username, project: :arke_system) do
+            user_model = ArkeManager.get(:user, :arke_system)
 
-        with nil <- user do
-          user_model = ArkeManager.get(:user, :arke_system)
+            {:ok, new_user} =
+              QueryManager.create(:arke_system, user_model, get_user_params(username))
 
-          {:ok, new_user} =
-            QueryManager.create(:arke_system, user_model, get_user_params(username))
+            new_user
+          end
 
-          new_user
-        else
-          _ -> user
+        get_member(user)
+        user
+      end
+
+      def get_member(user) do
+        with nil <-
+               QueryManager.get_by(
+                 project: :test_schema,
+                 group_id: "arke_auth_member",
+                 arke_system_user: to_string(user.id)
+               ) do
+          member_model = ArkeManager.get(:super_admin, :arke_system)
+
+          {:ok, member} =
+            QueryManager.create(:test_schema, member_model, %{
+              arke_system_user: to_string(user.id)
+            })
+
+          member
         end
       end
 

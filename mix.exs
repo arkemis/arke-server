@@ -82,12 +82,18 @@ defmodule ArkeServer.MixProject do
       test: [
         "ecto.drop -r ArkePostgres.Repo",
         "ecto.create -r ArkePostgres.Repo",
-        "arke_postgres.init_db --quiet",
-        "arke_postgres.create_project --id test_schema",
+        &seed_test_db/1,
         "test"
       ],
       setup: ["deps.get"]
     ]
+  end
+
+  defp seed_test_db(_args) do
+    for project <- ["arke_system", "test_schema"] do
+      Mix.Task.rerun("arke_postgres.create_project", ["--id", project])
+      Mix.Task.rerun("arke.seed_project", ["--project", project])
+    end
   end
 
   defp description() do
