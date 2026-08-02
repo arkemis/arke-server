@@ -118,6 +118,10 @@ defmodule ArkeServer.ConnCase do
       Ecto.Adapters.SQL.Sandbox.mode(ArkePostgres.Repo, {:shared, self()})
     end
 
-    {:ok, conn: Phoenix.ConnTest.build_conn()}
+    conn =
+      Phoenix.ConnTest.build_conn()
+      |> Plug.Conn.put_req_header("arke-project-key", "test_schema")
+
+    {:ok, conn: conn}
   end
 end

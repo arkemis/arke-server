@@ -36,6 +36,7 @@ defmodule ArkeServer.ArkeControllerTest do
     })
 
     string = ArkeManager.get(:string, :arke_system)
+    QueryManager.create(:test_schema, string, %{id: "api_string", label: "Api string"})
   end
 
   def delete_connection(parent, child, type, metadata \\ %{}) do
@@ -273,7 +274,8 @@ defmodule ArkeServer.ArkeControllerTest do
         QueryManager.create(:test_schema, link_model, %{
           id: "link_test",
           label: "testing",
-          name: "testing"
+          name: "testing",
+          arke_or_group_id: "test_arke_link_ac_2"
         })
 
       arke_model = ArkeManager.get(:arke, :arke_system)
@@ -342,7 +344,8 @@ defmodule ArkeServer.ArkeControllerTest do
         QueryManager.create(:test_schema, link_model, %{
           id: "link_test_ac",
           label: "testing arke_controller",
-          name: "testing arke_controller"
+          name: "testing arke_controller",
+          arke_or_group_id: "test_arke_link_ac_2"
         })
 
       arke_model = ArkeManager.get(:arke, :arke_system)
