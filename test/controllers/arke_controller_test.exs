@@ -146,8 +146,7 @@ defmodule ArkeServer.ArkeControllerTest do
     end
 
     test "error", %{auth_conn: conn} = _context do
-      conn = get(conn, "/lib/error/unit")
-      assert conn.status == 404
+      assert_error_sent(404, fn -> get(conn, "/lib/error/unit") end)
     end
   end
 
@@ -326,8 +325,7 @@ defmodule ArkeServer.ArkeControllerTest do
     end
 
     test "error", %{auth_conn: conn} = _context do
-      conn = get(conn, "/lib/error/unit")
-      assert conn.status == 404
+      assert_error_sent(404, fn -> get(conn, "/lib/error/unit") end)
     end
   end
 
