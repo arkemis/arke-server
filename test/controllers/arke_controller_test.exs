@@ -138,6 +138,19 @@ defmodule ArkeServer.ArkeControllerTest do
                end)
              ) == false
     end
+
+    test "error" do
+      # atom below only to prevent error: not an already existing atom
+      :unknown_arke_ac
+
+      user = get_user()
+
+      conn =
+        build_authenticated_conn(user)
+        |> get("/lib/unknown_arke_ac/group")
+
+      assert conn.status == 404
+    end
   end
 
   ################################ UNIT ################################
