@@ -23,6 +23,10 @@ config :arke_auth, ArkeAuth.Guardian,
 config :arke_server, ArkeServer.Endpoint,
   render_errors: [formats: [json: ArkeServer.ErrorJSON], layout: false]
 
+config :arke_server, mailer_module: ArkeServer.TestMailer
+
+config :arke_server, ArkeServer.TestMailer, adapter: Swoosh.Adapters.Test
+
 config :arke_server, ecto_repos: [ArkePostgres.Repo]
 
 config :arke_postgres, ArkePostgres.Repo,

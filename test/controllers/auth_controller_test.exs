@@ -24,16 +24,26 @@ defmodule ArkeServer.AuthControllerTest do
 
   test "POST /lib/auth/signup", %{conn: conn} do
     conn =
-      post(conn, "/lib/auth/user/signup",
-        username: "user3",
-        password: "password",
-        email: "user3@arke.test"
-      )
+      post(conn, "/lib/auth/super_admin/signup", %{
+        "arke_system_user" => %{
+          "username" => "user3",
+          "password" => "password",
+          "email" => "user3@arke.test"
+        }
+      })
 
-    body_resp = json_response(conn, 201)
-    assert body_resp["content"]["username"] == "user3"
+    body_resp = json_response(conn, 200)
 
-    delete_user("user2")
+    assert body_resp["content"]["arke_id"] == "super_admin"
+    assert is_binary(body_resp["content"]["access_token"])
+    assert is_binary(body_resp["content"]["refresh_token"])
+
+    user =
+      QueryManager.get_by(project: :arke_system, arke_id: :user, id: body_resp["content"]["arke_system_user"])
+
+    assert user.data.username == "user3"
+
+    delete_user("user3")
   end
 
   test "POST /lib/auth/refresh", %{conn: conn} do
