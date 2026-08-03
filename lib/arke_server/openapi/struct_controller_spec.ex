@@ -52,5 +52,4 @@ defmodule ArkeServer.Openapi.StructControllerSpec do
       responses: Responses.get_responses([201, 204])
     }
   end
-
 end

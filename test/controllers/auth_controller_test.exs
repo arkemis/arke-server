@@ -39,7 +39,11 @@ defmodule ArkeServer.AuthControllerTest do
     assert is_binary(body_resp["content"]["refresh_token"])
 
     user =
-      QueryManager.get_by(project: :arke_system, arke_id: :user, id: body_resp["content"]["arke_system_user"])
+      QueryManager.get_by(
+        project: :arke_system,
+        arke_id: :user,
+        id: body_resp["content"]["arke_system_user"]
+      )
 
     assert user.data.username == "user3"
 

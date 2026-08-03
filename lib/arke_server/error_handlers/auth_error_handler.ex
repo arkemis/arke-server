@@ -17,7 +17,7 @@
 ########################################################################
 defmodule ArkeServer.ErrorHandlers.Auth do
   @moduledoc """
-             """
+  """
 
   alias Arke.Utils.ErrorGenerator, as: Error
   import Plug.Conn
@@ -37,12 +37,13 @@ defmodule ArkeServer.ErrorHandlers.Auth do
     end
   end
 end
+
 ########################################################################
 ### SSO AUTH PIPELINE ##################################################
 ########################################################################
 defmodule ArkeServer.ErrorHandlers.SSOAuth do
   @moduledoc """
-             """
+  """
 
   alias Arke.Utils.ErrorGenerator, as: Error
   import Plug.Conn

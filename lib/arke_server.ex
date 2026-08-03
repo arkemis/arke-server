@@ -14,21 +14,21 @@
 
 defmodule ArkeServer do
   @moduledoc """
-             The entrypoint for defining your web interface, such
-             as controllers, channels and so on.
+  The entrypoint for defining your web interface, such
+  as controllers, channels and so on.
 
-             This can be used in your application as:
+  This can be used in your application as:
 
-                 use ArkeServer, :controller
+      use ArkeServer, :controller
 
-             The definitions below will be executed for every
-             controller, etc, so keep them short and clean, focused
-             on imports, uses and aliases.
+  The definitions below will be executed for every
+  controller, etc, so keep them short and clean, focused
+  on imports, uses and aliases.
 
-             Do NOT define functions inside the quoted expressions
-             below. Instead, define any helper function in modules
-             and import those modules here.
-             """
+  Do NOT define functions inside the quoted expressions
+  below. Instead, define any helper function in modules
+  and import those modules here.
+  """
 
   def controller do
     quote do
@@ -59,7 +59,8 @@ defmodule ArkeServer do
     def status(%Arke.Errors.ArkeError{type: :not_found}), do: 404
     def status(%Arke.Errors.ArkeError{type: _type}), do: 400
 
-    def actions(_exception), do: []  end
+    def actions(_exception), do: []
+  end
 
   @doc """
   When used, dispatch to the appropriate controller/view/etc.

@@ -14,12 +14,11 @@
 
 defmodule ArkeServer.Openapi.ArkeControllerSpec do
   @moduledoc """
-             Definition of the ApiSpec for `ArkeServer.ArkeController`.
-             """
+  Definition of the ApiSpec for `ArkeServer.ArkeController`.
+  """
 
   alias ArkeServer.Openapi.Responses
   alias OpenApiSpex.{Operation, Reference}
-
 
   def get_unit_operation() do
     %Operation{
@@ -132,6 +131,7 @@ defmodule ArkeServer.Openapi.ArkeControllerSpec do
       responses: Responses.get_responses([201, 204])
     }
   end
+
   def call_arke_function_operation() do
     %Operation{
       tags: ["Group"],
@@ -150,6 +150,7 @@ defmodule ArkeServer.Openapi.ArkeControllerSpec do
       responses: Responses.get_responses([201, 204])
     }
   end
+
   def call_unit_function_operation() do
     %Operation{
       tags: ["Group"],
@@ -168,5 +169,4 @@ defmodule ArkeServer.Openapi.ArkeControllerSpec do
       responses: Responses.get_responses([201, 204])
     }
   end
-
 end
