@@ -48,11 +48,17 @@ defmodule ArkeServer.StructController do
   def get_arke_struct(conn, %{"arke_id" => id}) do
     project = conn.assigns[:arke_project]
 
-    struct =
-      ArkeManager.get(String.to_atom(id), project)
-      |> Arke.Core.Unit.update(runtime_data: %{conn: conn})
-      |> StructManager.get_struct(conn.query_params)
+    case ArkeManager.get(String.to_atom(id), project) do
+      nil ->
+        ResponseManager.send_resp(conn, 404, nil)
 
-    ResponseManager.send_resp(conn, 200, %{content: struct})
+      arke ->
+        struct =
+          arke
+          |> Arke.Core.Unit.update(runtime_data: %{conn: conn})
+          |> StructManager.get_struct(conn.query_params)
+
+        ResponseManager.send_resp(conn, 200, %{content: struct})
+    end
   end
 end
