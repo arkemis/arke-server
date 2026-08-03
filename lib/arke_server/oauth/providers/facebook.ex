@@ -24,10 +24,11 @@ defmodule ArkeServer.OAuth.Provider.Facebook do
     client_secret = System.get_env("FACEBOOK_CLIENT_SECRET", nil)
     query_params = %{"input_token" => token, "access_token" => "#{client_id}|#{client_secret}"}
 
-    case HTTPoison.get("https://graph.facebook.com/v14.0/debug_token", [], params: query_params) do
-      {:ok, %{status_code: 200, body: body}} ->
-        body = Poison.decode!(body)
-
+    case Req.get("https://graph.facebook.com/v14.0/debug_token",
+           params: query_params,
+           retry: false
+         ) do
+      {:ok, %{status: 200, body: body}} ->
         case Map.get(body["data"], "app_id") == client_id and
                Map.get(body["data"], "is_valid", false) in ["true", "True", "1", true] do
           false ->
@@ -63,10 +64,8 @@ defmodule ArkeServer.OAuth.Provider.Facebook do
   defp get_user_data(conn, token) do
     query_params = %{"fields" => "id,first_name,last_name,email", "access_token" => token}
 
-    case HTTPoison.get("https://graph.facebook.com/v14.0/me", [], params: query_params) do
-      {:ok, %{status_code: 200, body: body}} ->
-        body = Poison.decode!(body)
-
+    case Req.get("https://graph.facebook.com/v14.0/me", params: query_params, retry: false) do
+      {:ok, %{status: 200, body: body}} ->
         put_private(conn, @private_oauth_key, body)
 
       _ ->

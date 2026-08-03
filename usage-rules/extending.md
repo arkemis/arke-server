@@ -41,7 +41,11 @@
     adapter: ArkeServer.Swoosh.Adapters.Mailtrap,
     api_key: System.get_env("MAILTRAP_API_KEY"),
     default_sender: {"MyApp", "noreply@myapp.com"}
+  config :swoosh, :api_client, Swoosh.ApiClient.Req
   ```
+
+  The `:swoosh` line must live in the host app — library config does not
+  propagate, and req is the only API client ArkeServer ships.
 
 - Custom OAuth provider: `use ArkeServer.OAuth.Core`; implement
   `handle_request/1`, `info/1`, `uid/1`, `handle_cleanup/1`; register it under
