@@ -88,8 +88,7 @@
           true <- Map.get(decoded, "aud", nil) == app_id,
           true <- Map.get(decoded, "nonce", nil) == nonce,
           true <-
-            DatetimeHandler.from_unix(Map.get(decoded, "exp", 0)) > DatetimeHandler.now(:datetime) or
-              Timex.from_unix(Map.get(decoded, "exp", 0)) > DatetimeHandler.now(:datetime) do
+            DatetimeHandler.from_unix(Map.get(decoded, "exp", 0)) > DatetimeHandler.now(:datetime) do
        {:ok, decoded}
      else
        _ -> Error.create(:auth, "invalid token")
