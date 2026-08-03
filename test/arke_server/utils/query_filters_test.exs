@@ -209,5 +209,15 @@ defmodule ArkeServer.Utils.QueryFiltersTest do
       assert {:error, _} =
                QueryFilters.get_from_string(@conn, "and(eq(nonexistent_param,value))")
     end
+
+    test "invalid parameter in a nested path returns error" do
+      assert {:error, _} =
+               QueryFilters.get_from_string(@conn, "and(eq(nonexistent.string_support,value))")
+    end
+
+    test "invalid leaf parameter under a valid path returns error" do
+      assert {:error, _} =
+               QueryFilters.get_from_string(@conn, "and(eq(link_member.nonexistent_param,value))")
+    end
   end
 end

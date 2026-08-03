@@ -358,4 +358,38 @@ defmodule ArkeServer.UnitControllerTest do
                List.first(json_body["content"]["items"])["id"] == "unit_support_api_3"
     end
   end
+
+  describe "invalid filters - GET /lib/unit" do
+    setup [:auth_conn]
+
+    test "unknown parameter", %{auth_conn: conn} = _context do
+      conn = get(conn, "/lib/unit?filter=and(eq(nonexistent_param,value))")
+
+      json_body = json_response(conn, 400)
+      assert [%{"context" => "filter", "message" => message}] = json_body["messages"]
+      assert message =~ "nonexistent_param"
+    end
+
+    test "unknown parameter in a nested path", %{auth_conn: conn} = _context do
+      conn = get(conn, "/lib/unit?filter=and(eq(nonexistent.string_support,value))")
+
+      json_body = json_response(conn, 400)
+      assert [%{"context" => "filter", "message" => message}] = json_body["messages"]
+      assert message =~ "nonexistent"
+    end
+
+    test "unknown leaf parameter under a valid path", %{auth_conn: conn} = _context do
+      conn = get(conn, "/lib/unit?filter=and(eq(link_member.nonexistent_param,value))")
+
+      json_body = json_response(conn, 400)
+      assert [%{"context" => "filter", "message" => message}] = json_body["messages"]
+      assert message =~ "nonexistent_param"
+    end
+
+    test "unknown operator", %{auth_conn: conn} = _context do
+      conn = get(conn, "/lib/unit?filter=and(bad(string_support,value))")
+
+      assert [%{"context" => "filter"}] = json_response(conn, 400)["messages"]
+    end
+  end
 end
