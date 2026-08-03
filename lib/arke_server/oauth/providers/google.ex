@@ -58,10 +58,8 @@ defmodule ArkeServer.OAuth.Provider.Google do
 
   defp get_certs(%{"kid" => certificate_id}) do
     # get pem certs to validate the token later
-    case HTTPoison.get("https://www.googleapis.com/oauth2/v3/certs") do
-      {:ok, %{status_code: 200, body: body}} ->
-        body = Poison.decode!(body)
-
+    case Req.get("https://www.googleapis.com/oauth2/v3/certs", retry: false) do
+      {:ok, %{status: 200, body: body}} ->
         case Enum.find(body["keys"], nil, fn k -> k["kid"] == certificate_id end) do
           nil ->
             Error.create(:auth, "invalid token")

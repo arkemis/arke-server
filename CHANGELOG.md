@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.2] - 2026-07-30
+
+### Changed
+- Usage rules by @ilyichv in [#107](https://github.com/arkemis/arke-server/pull/107)
+- Bump the actions-deps group across 1 directory with 2 updates by @dependabot[bot] in [#106](https://github.com/arkemis/arke-server/pull/106)
+- Bump plug_cowboy from 2.8.0 to 2.8.1 by @dependabot[bot] in [#97](https://github.com/arkemis/arke-server/pull/97)
+- Bump the actions-deps group across 1 directory with 3 updates by @dependabot[bot] in [#95](https://github.com/arkemis/arke-server/pull/95)
+- Dependabot + fix legacy arkemishub links by @ilyichv
+- Matrix checks by @ilyichv in [#94](https://github.com/arkemis/arke-server/pull/94)
+
+### New Contributors
+* @dependabot[bot] made their first contribution in [#106](https://github.com/arkemis/arke-server/pull/106)
+
 ## [0.5.1] - 2026-04-30
 
 ### Changed
@@ -422,6 +435,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * @ErikFerrari made their first contribution in [#6](https://github.com/arkemis/arke-server/pull/6)
 * @dorianmercatante made their first contribution in [#3](https://github.com/arkemis/arke-server/pull/3)
 
+[0.5.2]: https://github.com/arkemis/arke-server/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/arkemis/arke-server/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/arkemis/arke-server/compare/v0.4.3...v0.5.0
 [0.4.3]: https://github.com/arkemis/arke-server/compare/v0.4.2...v0.4.3

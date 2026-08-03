@@ -65,24 +65,16 @@ defmodule ArkeServer.Utils.OneSignal do
 
   defp call_api(method, path, body, opts \\ []) do
     api_token = System.get_env("ONESIGNAL_API_KEY")
-    url = "https://onesignal.com/api/v1#{path}"
 
-    headers = [
-      {"content-type", "application/json"},
-      {"Authorization", "Basic #{api_token}"}
-    ]
-
-    body = Jason.encode!(body)
-
-    case HTTPoison.request(method, url, body, headers, []) do
-      {:error, error} ->
-        {:error, error}
-
-      {:ok, response} ->
-        case Jason.decode(response.body) do
-          {:ok, body} -> body
-          {:error, error} -> {:error, error}
-        end
+    case Req.request(
+           method: method,
+           url: "https://onesignal.com/api/v1#{path}",
+           json: body,
+           headers: [{"authorization", "Basic #{api_token}"}],
+           retry: false
+         ) do
+      {:ok, response} -> response.body
+      {:error, error} -> {:error, error}
     end
   end
 end
