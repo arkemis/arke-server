@@ -32,7 +32,7 @@ defmodule ArkeServer do
 
   def controller do
     quote do
-      use Phoenix.Controller
+      use Phoenix.Controller, formats: [:json]
 
       import Plug.Conn
     end
