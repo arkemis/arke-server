@@ -58,10 +58,8 @@
 
    defp get_public_key(%{"kid" => certificate_id}) do
      # get pem certs to validate the token later
-     case HTTPoison.get("https://appleid.apple.com/auth/keys") do
-       {:ok, %{status_code: 200, body: body}} ->
-         body = Poison.decode!(body)
-
+     case Req.get("https://appleid.apple.com/auth/keys", retry: false) do
+       {:ok, %{status: 200, body: body}} ->
          case Enum.find(body["keys"], nil, fn key -> key["kid"] == certificate_id end) do
            nil ->
              Error.create(:auth, "invalid token")
