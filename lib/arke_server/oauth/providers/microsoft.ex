@@ -50,15 +50,15 @@ defmodule ArkeServer.OAuth.Provider.Microsoft do
     url = "https://graph.microsoft.com/v1.0/me"
     headers = [{"Authorization", "Bearer #{access_token}"}]
 
-    case HTTPoison.get(url, headers) do
-      {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
-        {:ok, Jason.decode!(body)}
+    case Req.get(url, headers: headers, retry: false) do
+      {:ok, %{status: 200, body: body}} ->
+        {:ok, body}
 
-      {:ok, %HTTPoison.Response{status_code: status_code}} ->
-        {:error, "Failed to verify token, status code: #{status_code}"}
+      {:ok, %{status: status}} ->
+        {:error, "Failed to verify token, status code: #{status}"}
 
-      {:error, %HTTPoison.Error{reason: reason}} ->
-        {:error, reason}
+      {:error, exception} ->
+        {:error, Exception.message(exception)}
     end
   end
 
@@ -95,12 +95,11 @@ defmodule ArkeServer.OAuth.Provider.Microsoft do
 
   defp get_public_keys do
     uri = "https://login.microsoftonline.com/#{get_key("AZURE_TENANT_ID")}/discovery/v2.0/keys"
-    case HTTPoison.get(uri) do
-      {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
-        keys = body |> Jason.decode!() |> Map.get("keys")
-        {:ok, Enum.map(keys, &JOSE.JWK.from(&1))}
+    case Req.get(uri, retry: false) do
+      {:ok, %{status: 200, body: body}} ->
+        {:ok, body |> Map.get("keys") |> Enum.map(&JOSE.JWK.from(&1))}
 
-      {:error, %HTTPoison.Error{reason: reason}} -> {:error, reason}
+      {:error, exception} -> {:error, Exception.message(exception)}
     end
   end
 
