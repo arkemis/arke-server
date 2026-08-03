@@ -19,6 +19,5 @@ defmodule ArkeServer.Openapi.ParameterControllerSpec do
 
   alias ArkeServer.Openapi.Responses
   alias OpenApiSpex.{Operation, Reference}
-  #todo: all api operation for parameter
-
+  # todo: all api operation for parameter
 end

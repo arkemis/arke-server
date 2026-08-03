@@ -14,8 +14,8 @@
 
 defmodule ArkeServer.Plugs.GetProject do
   @moduledoc """
-             Plug to get the project from the request header
-             """
+  Plug to get the project from the request header
+  """
   import Plug.Conn
   alias Arke.Utils.ErrorGenerator, as: Error
 

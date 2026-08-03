@@ -22,7 +22,6 @@ defmodule ArkeServer.ProjectController do
   # Openapi request definition
   use ArkeServer.Openapi.Spec, module: ArkeServer.Openapi.ProjectControllerSpec
 
-
   alias Arke.{QueryManager, LinkManager, StructManager}
   alias Arke.Boundary.ArkeManager
   alias UnitSerializer
@@ -33,8 +32,8 @@ defmodule ArkeServer.ProjectController do
   end
 
   @doc """
-       Create a new unit
-       """
+  Create a new unit
+  """
   def create(conn, params) do
     # all arkes struct and gen server are on :arke_system so it won't be changed to project
     arke = ArkeManager.get(:arke_project, :arke_system)
@@ -50,8 +49,8 @@ defmodule ArkeServer.ProjectController do
   end
 
   @doc """
-       Update an unit
-       """
+  Update an unit
+  """
   def update(%Plug.Conn{body_params: params} = conn, %{"unit_id" => unit_id}) do
     arke = ArkeManager.get(:arke_project, :arke_system)
     unit = QueryManager.get_by(project: :arke_system, arke: arke, id: unit_id)
@@ -68,8 +67,8 @@ defmodule ArkeServer.ProjectController do
 
   # delete
   @doc """
-       Delete a unit
-       """
+  Delete a unit
+  """
   def delete(conn, %{"unit_id" => unit_id}) do
     arke = ArkeManager.get(:arke_project, :arke_system)
     unit = QueryManager.get_by(project: :arke_system, arke: arke, id: unit_id)
@@ -82,16 +81,16 @@ defmodule ArkeServer.ProjectController do
   end
 
   @doc """
-       Get a units of arke_project
-       """
+  Get a units of arke_project
+  """
   def get_all_unit(conn, %{}) do
     arke_list = QueryManager.filter_by(project: :arke_system, arke: :arke_project)
     ResponseManager.send_resp(conn, 200, %{items: StructManager.encode(arke_list, type: :json)})
   end
 
   @doc """
-       It returns a unit
-       """
+  It returns a unit
+  """
   def get_unit(conn, %{"unit_id" => unit_id}) do
     arke = ArkeManager.get(:arke_project, :arke_system)
     unit = QueryManager.get_by(project: :arke_system, arke: arke, id: unit_id)

@@ -194,7 +194,10 @@ defmodule ArkeServer.ArkeControllerTest do
       check_db("unit_api_post")
 
       conn =
-        post(conn, "/lib/test_arke_group_ac/unit", %{id: "unit_api_post", api_label: "Test Unit Api"})
+        post(conn, "/lib/test_arke_group_ac/unit", %{
+          id: "unit_api_post",
+          api_label: "Test Unit Api"
+        })
 
       json_body = json_response(conn, 200)
 

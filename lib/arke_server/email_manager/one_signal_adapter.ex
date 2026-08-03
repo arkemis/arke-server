@@ -63,7 +63,9 @@ defmodule ArkeServer.Swoosh.Adapters.OneSignal do
   Mailgun recognizes.
   """
 
-  use Swoosh.Adapter, required_config: [:api_key, :domain, :app_id], required_deps: [plug: Plug.Conn.Query]
+  use Swoosh.Adapter,
+    required_config: [:api_key, :domain, :app_id],
+    required_deps: [plug: Plug.Conn.Query]
 
   alias Swoosh.Email
   import Swoosh.Email.Render
@@ -125,18 +127,17 @@ defmodule ArkeServer.Swoosh.Adapters.OneSignal do
     |> encode_body()
   end
 
-
-#  defp prepare_custom_vars(body, %{provider_options: %{custom_vars: custom_vars}}) do
-#    Map.put(body, "h:X-Mailgun-Variables", Swoosh.json_library().encode!(custom_vars))
-#  end
+  #  defp prepare_custom_vars(body, %{provider_options: %{custom_vars: custom_vars}}) do
+  #    Map.put(body, "h:X-Mailgun-Variables", Swoosh.json_library().encode!(custom_vars))
+  #  end
 
   defp prepare_custom_vars(body, _email), do: body
 
-#  defp prepare_sending_options(body, %{provider_options: %{sending_options: sending_options}}) do
-#    Enum.reduce(sending_options, body, fn {k, v}, body ->
-#      Map.put(body, "o:#{k}", encode_variable(v))
-#    end)
-#  end
+  #  defp prepare_sending_options(body, %{provider_options: %{sending_options: sending_options}}) do
+  #    Enum.reduce(sending_options, body, fn {k, v}, body ->
+  #      Map.put(body, "o:#{k}", encode_variable(v))
+  #    end)
+  #  end
 
   defp prepare_sending_options(body, _email), do: body
 
@@ -178,7 +179,8 @@ defmodule ArkeServer.Swoosh.Adapters.OneSignal do
      [{"Content-Type", attachment.content_type}]}
   end
 
-  defp prepare_from(body, %{from: from}), do: Map.put(body, :email_from_address, render_recipient(from))
+  defp prepare_from(body, %{from: from}),
+    do: Map.put(body, :email_from_address, render_recipient(from))
 
   defp prepare_to(body, %{to: to}), do: Map.put(body, :to, render_recipient(to))
 

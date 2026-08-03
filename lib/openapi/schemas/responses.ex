@@ -1,5 +1,4 @@
 defmodule ArkeServer.Openapi.Responses do
-
   alias OpenApiSpex.Operation
 
   def get_responses(exclude \\ nil)

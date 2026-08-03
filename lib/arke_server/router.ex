@@ -56,7 +56,7 @@ defmodule ArkeServer.Router do
     plug(ArkeServer.Plugs.Permission)
   end
 
-  #todo: refactor router to divide permission and auth
+  # todo: refactor router to divide permission and auth
   pipeline :tmp_auth_pipe do
     plug(:accepts, ["json", "multipart"])
     plug(ArkeServer.Plugs.AuthPipeline)
