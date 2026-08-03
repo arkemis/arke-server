@@ -22,8 +22,6 @@ defmodule ArkeServer.Application do
   @impl true
   def start(_type, _args) do
     children = [
-      # Start the Telemetry supervisor
-      ArkeServer.Telemetry,
       # Start the Endpoint (http/https)
       ArkeServer.Endpoint
       # Start a worker by calling: ArkeServer.Worker.start_link(arg)
