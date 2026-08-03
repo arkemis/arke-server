@@ -59,7 +59,7 @@ defmodule ArkeServer.Utils.QueryFiltersTest do
       {:ok, {:and, false, [%BaseFilter{operator: :in, value: values}]}} =
         QueryFilters.get_from_string(@conn, "and(in(integer_support,(3,10)))")
 
-      assert values == ["3", "10"]
+      assert values == [3, 10]
     end
   end
 
@@ -86,7 +86,7 @@ defmodule ArkeServer.Utils.QueryFiltersTest do
       assert length(or_children) == 2
       assert Enum.all?(or_children, &match?(%BaseFilter{operator: :eq}, &1))
 
-      [%BaseFilter{operator: :eq, value: "5"}] = base
+      [%BaseFilter{operator: :eq, value: 5}] = base
     end
 
     test "and inside or" do

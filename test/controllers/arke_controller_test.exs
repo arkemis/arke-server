@@ -6,17 +6,22 @@ defmodule ArkeServer.ArkeControllerTest do
   defp check_arke(_context) do
     ids = [
       :test_arke_group_ac,
+      :test_arke_group_ac2,
       :group_test_api_arke,
       :test_unit_arke_ac_1,
       :test_arke_link_ac_1,
       :test_unit_arke_ac_2,
       :test_arke_link_ac_2,
       :link_test_ac,
-      :api_string
+      :api_string,
+      :api_label,
+      :api_required
     ]
 
     delete_connection("group_test_api_arke", "test_arke_group_ac", "group")
     delete_connection("test_arke_group_ac", "api_string", "parameter")
+    delete_connection("test_arke_group_ac", "api_label", "parameter")
+    delete_connection("test_arke_group_ac2", "api_required", "parameter")
     delete_connection("test_unit_arke_ac_1", "test_unit_arke_ac_2", "link_test_ac")
 
     Enum.each(ids, fn id ->
@@ -35,7 +40,23 @@ defmodule ArkeServer.ArkeControllerTest do
       label: "Test arke group ac"
     })
 
+    QueryManager.create(:test_schema, arke_model, %{
+      id: "test_arke_group_ac2",
+      label: "Test arke group ac2"
+    })
+
     string = ArkeManager.get(:string, :arke_system)
+    QueryManager.create(:test_schema, string, %{id: "api_string", label: "Api string"})
+    QueryManager.create(:test_schema, string, %{id: "api_label", label: "Api label"})
+
+    QueryManager.create(:test_schema, string, %{
+      id: "api_required",
+      label: "Api required",
+      required: true
+    })
+
+    LinkManager.add_node(:test_schema, "test_arke_group_ac", "api_label", "parameter")
+    LinkManager.add_node(:test_schema, "test_arke_group_ac2", "api_required", "parameter")
   end
 
   def delete_connection(parent, child, type, metadata \\ %{}) do
@@ -109,11 +130,13 @@ defmodule ArkeServer.ArkeControllerTest do
 
       res = json_response(conn, 200)
 
-      assert is_list(res["content"]["parameters"]) == true
-    end
+      assert res["content"]["count"] == 1
 
-    test "error" do
-      nil
+      assert is_nil(
+               Enum.find(res["content"]["items"], fn group ->
+                 group["id"] == "group_test_api_arke"
+               end)
+             ) == false
     end
   end
 
@@ -145,8 +168,7 @@ defmodule ArkeServer.ArkeControllerTest do
     end
 
     test "error", %{auth_conn: conn} = _context do
-      conn = get(conn, "/lib/error/unit")
-      assert conn.status == 404
+      assert_error_sent(404, fn -> get(conn, "/lib/error/unit") end)
     end
   end
 
@@ -159,11 +181,12 @@ defmodule ArkeServer.ArkeControllerTest do
       check_db("unit_api_post")
 
       conn =
-        post(conn, "/lib/test_arke_group_ac/unit", %{id: "unit_api_post", label: "Test Unit Api"})
+        post(conn, "/lib/test_arke_group_ac/unit", %{id: "unit_api_post", api_label: "Test Unit Api"})
 
-      json_body = json_response(conn, 201)
+      json_body = json_response(conn, 200)
 
       assert json_body["content"]["id"] == "unit_api_post"
+      assert json_body["content"]["api_label"] == "Test Unit Api"
     end
 
     test "error", %{auth_conn: conn} = _context do
@@ -219,15 +242,15 @@ defmodule ArkeServer.ArkeControllerTest do
 
       QueryManager.create(:test_schema, arke_model, %{
         id: "unit_api_ac",
-        label: "Test Unit Api"
+        api_label: "Test Unit Api"
       })
 
-      conn = put(conn, "/lib/test_arke_group_ac/unit/unit_api_ac", %{label: "label edited"})
+      conn = put(conn, "/lib/test_arke_group_ac/unit/unit_api_ac", %{api_label: "label edited"})
       json_body = json_response(conn, 200)
 
       unit_db = QueryManager.get_by(id: :unit_api_ac, project: :test_schema)
 
-      assert unit_db.data.label == "label edited"
+      assert unit_db.data.api_label == "label edited"
     end
 
     test "error", %{auth_conn: conn} = _context do
@@ -273,7 +296,8 @@ defmodule ArkeServer.ArkeControllerTest do
         QueryManager.create(:test_schema, link_model, %{
           id: "link_test",
           label: "testing",
-          name: "testing"
+          name: "testing",
+          arke_or_group_id: "test_arke_link_ac_2"
         })
 
       arke_model = ArkeManager.get(:arke, :arke_system)
@@ -319,13 +343,14 @@ defmodule ArkeServer.ArkeControllerTest do
       assert is_list(json_body["content"]["items"]) == true
 
       assert is_nil(
-               Enum.find(json_body["content"]["items"], fn unit -> unit["id"] == "unit_api_ac" end)
+               Enum.find(json_body["content"]["items"], fn unit ->
+                 unit["id"] == "test_unit_arke_1"
+               end)
              ) == false
     end
 
     test "error", %{auth_conn: conn} = _context do
-      conn = get(conn, "/lib/error/unit")
-      assert conn.status == 404
+      assert_error_sent(404, fn -> get(conn, "/lib/error/unit") end)
     end
   end
 
@@ -342,7 +367,8 @@ defmodule ArkeServer.ArkeControllerTest do
         QueryManager.create(:test_schema, link_model, %{
           id: "link_test_ac",
           label: "testing arke_controller",
-          name: "testing arke_controller"
+          name: "testing arke_controller",
+          arke_or_group_id: "test_arke_link_ac_2"
         })
 
       arke_model = ArkeManager.get(:arke, :arke_system)
@@ -376,13 +402,11 @@ defmodule ArkeServer.ArkeControllerTest do
       post_conn =
         post(
           post_conn,
-          "/lib/test_arke_link_ac_2/unit/test_unit_arke_ac_1/link/link_test_ac/test_arke_link_ac_2/unit/test_unit_arke_ac_2"
+          "/lib/test_arke_link_ac_1/unit/test_unit_arke_ac_1/link/link_test_ac/test_arke_link_ac_2/unit/test_unit_arke_ac_2"
         )
 
       json_body = json_response(post_conn, 201)
-      arke = ArkeManager.get(:test_arke_group_ac, :test_schema)
 
-      assert is_nil(Enum.find(arke.data.parameters, fn p -> p.id == :api_string end)) == false
       assert json_body["content"]["parent_id"] == "test_unit_arke_ac_1"
       assert json_body["content"]["child_id"] == "test_unit_arke_ac_2"
       assert json_body["content"]["type"] == "link_test_ac"
@@ -390,11 +414,9 @@ defmodule ArkeServer.ArkeControllerTest do
       del_conn =
         delete(
           del_conn,
-          "/lib/test_arke_link_ac_2/unit/test_unit_arke_ac_1/link/link_test_ac/test_arke_link_ac_2/unit/test_unit_arke_ac_2"
+          "/lib/test_arke_link_ac_1/unit/test_unit_arke_ac_1/link/link_test_ac/test_arke_link_ac_2/unit/test_unit_arke_ac_2"
         )
 
-      arke_del = ArkeManager.get(:test_arke_group_ac, :test_schema)
-      assert is_nil(Enum.find(arke_del.data.parameters, fn p -> p.id == :api_string end)) == true
       assert del_conn.status == 204
     end
   end

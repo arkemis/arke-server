@@ -55,6 +55,9 @@ defmodule ArkeServer.UnitControllerTest do
     %{auth_conn: build_authenticated_conn(user)}
   end
 
+  # Filters matching more than one unit need an explicit order before reading the first item.
+  @order "order=id;asc"
+
   describe "get unit by filters AND - GET /lib/unit" do
     setup [:check_unit, :auth_conn]
 
@@ -68,22 +71,24 @@ defmodule ArkeServer.UnitControllerTest do
     end
 
     test "gt", %{auth_conn: conn} = _context do
-      filter = "filter=and(gt(integer_support,4),gt(float_support,10.0))"
+      filter = "filter=and(gt(integer_support,4),gt(float_support,6.0))"
 
-      conn = get(conn, "/lib/unit?#{filter}")
+      conn = get(conn, "/lib/unit?#{filter}&#{@order}")
 
       json_body = json_response(conn, 200)
 
+      assert json_body["content"]["count"] == 2
       assert List.first(json_body["content"]["items"])["integer_support"] > 4 == true
-      assert List.first(json_body["content"]["items"])["float_support"] > 10.0 == true
+      assert List.first(json_body["content"]["items"])["float_support"] > 6.0 == true
     end
 
     test "gte", %{auth_conn: conn} = _context do
       filter = "filter=and(gte(integer_support,6),gte(float_support,6.0))"
-      conn = get(conn, "/lib/unit?#{filter}")
+      conn = get(conn, "/lib/unit?#{filter}&#{@order}")
 
       json_body = json_response(conn, 200)
 
+      assert json_body["content"]["count"] == 2
       assert List.first(json_body["content"]["items"])["integer_support"] >= 6 == true
       assert List.first(json_body["content"]["items"])["float_support"] >= 6.0 == true
     end
@@ -91,21 +96,22 @@ defmodule ArkeServer.UnitControllerTest do
     test "lt", %{auth_conn: conn} = _context do
       filter = "filter=and(lt(integer_support,15),lt(float_support,8.5))"
 
-      conn = get(conn, "/lib/unit?#{filter}")
+      conn = get(conn, "/lib/unit?#{filter}&#{@order}")
 
       json_body = json_response(conn, 200)
 
+      assert json_body["content"]["count"] == 3
       assert List.first(json_body["content"]["items"])["integer_support"] < 10 == true
       assert List.first(json_body["content"]["items"])["float_support"] < 8.5 == true
     end
 
     test "lte", %{auth_conn: conn} = _context do
-      # FIXME: unit_support_api_2
       filter = "filter=and(lte(integer_support,10),lte(float_support,8.5))"
       conn = get(conn, "/lib/unit?#{filter}")
 
       json_body = json_response(conn, 200)
 
+      assert json_body["content"]["count"] == 1
       assert List.first(json_body["content"]["items"])["integer_support"] <= 10 == true
       assert List.first(json_body["content"]["items"])["float_support"] <= 8.5 == true
     end
@@ -177,15 +183,15 @@ defmodule ArkeServer.UnitControllerTest do
     end
 
     test "in", %{auth_conn: conn} = _context do
-      # FIXME: support of in operator with numbers
-      filter = "filter=and(in(integer_support,(3,10)))"
+      filter = "filter=and(in(integer_support,(4,12)))"
 
       conn = get(conn, "/lib/unit?#{filter}")
 
       json_body = json_response(conn, 200)
+      items = json_body["content"]["items"]
 
-      param = List.first(json_body["content"]["items"])["integer_support"]
-      assert param >= 3 and param <= 10 == true
+      assert json_body["content"]["count"] > 0
+      assert Enum.all?(items, &(&1["integer_support"] in [4, 12]))
     end
 
     test "isnull", %{auth_conn: conn} = _context do
@@ -215,45 +221,48 @@ defmodule ArkeServer.UnitControllerTest do
 
     test "gt", %{auth_conn: conn} = _context do
       filter = "filter=or(gt(integer_support,4),gt(integer_support,20))"
-      conn = get(conn, "/lib/unit?#{filter}")
+      conn = get(conn, "/lib/unit?#{filter}&#{@order}")
 
       json_body = json_response(conn, 200)
 
       unit = List.first(json_body["content"]["items"])
 
+      assert json_body["content"]["count"] == 2
       assert unit["id"] == "unit_support_api_2"
     end
 
     test "gte", %{auth_conn: conn} = _context do
       filter = "filter=or(gte(integer_support,6),gte(integer_support,20))"
-      conn = get(conn, "/lib/unit?#{filter}")
+      conn = get(conn, "/lib/unit?#{filter}&#{@order}")
 
       json_body = json_response(conn, 200)
       unit = List.first(json_body["content"]["items"])
 
+      assert json_body["content"]["count"] == 2
       assert unit["id"] == "unit_support_api_2"
     end
 
     test "lt", %{auth_conn: conn} = _context do
       filter = "filter=or(lt(integer_support,10),lt(float_support,20.0))"
-      conn = get(conn, "/lib/unit?#{filter}")
+      conn = get(conn, "/lib/unit?#{filter}&#{@order}")
 
       json_body = json_response(conn, 200)
 
       unit = List.first(json_body["content"]["items"])
 
+      assert json_body["content"]["count"] == 3
       assert unit["id"] == "unit_support_api"
     end
 
     test "lte", %{auth_conn: conn} = _context do
-      # FIXME: Float like 20 should be accepted
-      filter = "filter=or(lte(integer_support,10),lte(float_support,20))"
-      conn = get(conn, "/lib/unit?#{filter}")
+      filter = "filter=or(lte(float_support,7),lte(integer_support,3))"
+      conn = get(conn, "/lib/unit?#{filter}&#{@order}")
 
       json_body = json_response(conn, 200)
 
       unit = List.first(json_body["content"]["items"])
 
+      assert json_body["content"]["count"] == 2
       assert unit["id"] == "unit_support_api_2"
     end
 
@@ -328,13 +337,14 @@ defmodule ArkeServer.UnitControllerTest do
     end
 
     test "in", %{auth_conn: conn} = _context do
-      # FIXME: list of values
-      filter = "filter=or(in(integer_support,(3,10)))"
+      filter = "filter=or(in(integer_support,(4,12)))"
       conn = get(conn, "/lib/unit?#{filter}")
 
       json_body = json_response(conn, 200)
-      param = List.first(json_body["content"]["items"])["integer_support"]
-      assert param >= 3 and param <= 10 == true
+      items = json_body["content"]["items"]
+
+      assert json_body["content"]["count"] > 0
+      assert Enum.all?(items, &(&1["integer_support"] in [4, 12]))
     end
 
     test "isnull", %{auth_conn: conn} = _context do

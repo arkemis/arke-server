@@ -25,7 +25,6 @@ jobs:
             otp: "26.2.5"
           - elixir: "1.18.4"
             otp: "26.2.5"
-            coverage: true
     services:
       postgres:
         image: postgres
@@ -61,12 +60,10 @@ jobs:
       - name: Build package
         run: mix hex.build
       - name: Run tests
-        run: mix coveralls.json
-        # todo: remove after tests are added
-        continue-on-error: true
+        run: mix test
         env:
           MIX_ENV: test
-          DB_HOSTNAME: postgres
+          DB_HOSTNAME: localhost
           DB_NAME: test
           DB_USER: postgres
           DB_PASSWORD: postgres

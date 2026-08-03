@@ -24,7 +24,6 @@ defmodule ArkeServer.MixProject do
       aliases: aliases(),
       elixirc_paths: elixirc_paths(Mix.env()),
       elixirc_options: [warnings_as_errors: false],
-      test_coverage: [tool: ExCoveralls],
       versioning: versioning()
     ]
   end
@@ -65,7 +64,6 @@ defmodule ArkeServer.MixProject do
       {:corsica, "~> 1.2"},
       {:ex_doc, "~> 0.28", only: :dev, runtime: false},
       {:open_api_spex, "~> 3.16"},
-      {:excoveralls, "~> 0.10", only: :test},
       {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
       {:arke, "~> 0.7.0"},
       {:arke_postgres, "~> 0.6.0"},
@@ -80,12 +78,18 @@ defmodule ArkeServer.MixProject do
       test: [
         "ecto.drop -r ArkePostgres.Repo",
         "ecto.create -r ArkePostgres.Repo",
-        "arke_postgres.init_db --quiet",
-        "arke_postgres.create_project --id test_schema",
+        &seed_test_db/1,
         "test"
       ],
       setup: ["deps.get"]
     ]
+  end
+
+  defp seed_test_db(_args) do
+    for project <- ["arke_system", "test_schema"] do
+      Mix.Task.rerun("arke_postgres.create_project", ["--id", project])
+      Mix.Task.rerun("arke.seed_project", ["--project", project])
+    end
   end
 
   defp description() do

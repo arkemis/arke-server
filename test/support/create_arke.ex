@@ -54,6 +54,15 @@ defmodule ArkeServer.Support.CreateArke do
     }
   end
 
+  def support_arke() do
+    %{id: id} = attr = arke_from_attr()
+    [] = Arke.handle_manager([Map.update!(attr, :id, &to_string/1)], :arke_system, :arke)
+
+    Enum.each(groups_from_attr(), fn %{id: parent_id, metadata: link_metadata} ->
+      GroupManager.add_link(parent_id, :arke_system, :arke_list, id, link_metadata)
+    end)
+  end
+
   def support_parameter() do
     string_support =
       Unit.new(
