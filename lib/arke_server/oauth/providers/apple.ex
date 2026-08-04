@@ -86,7 +86,10 @@ defmodule ArkeServer.OAuth.Provider.Apple do
          true <- Map.get(decoded, "aud", nil) == app_id,
          true <- Map.get(decoded, "nonce", nil) == nonce,
          true <-
-           DatetimeHandler.from_unix(Map.get(decoded, "exp", 0)) > DatetimeHandler.now(:datetime) do
+           DateTime.compare(
+             DatetimeHandler.from_unix(Map.get(decoded, "exp", 0)),
+             DatetimeHandler.now(:datetime)
+           ) == :gt do
       {:ok, decoded}
     else
       _ -> Error.create(:auth, "invalid token")
