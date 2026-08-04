@@ -73,7 +73,7 @@ defmodule ArkeServer.OAuth.Provider.Apple do
     end
   end
 
-  defp get_public_key(token) do
+  defp get_public_key(_token) do
     Error.create(:auth, "invalid token")
   end
 

@@ -10,7 +10,7 @@ defmodule ArkeServer.ApiSpec do
     Server
   }
 
-  alias ArkeServer.{Endpoint, Router}
+  alias ArkeServer.Router
   @behaviour OpenApi
 
   @impl OpenApi

@@ -15,7 +15,6 @@
 defmodule ArkeServer.Plugs.BuildFilters do
   import Plug.Conn
   alias Arke.QueryManager
-  alias Arke.Validator
   alias ArkeServer.Utils.QueryFilters
   alias Arke.Utils.ErrorGenerator, as: Error
 
@@ -85,12 +84,14 @@ defmodule ArkeServer.Plugs.BuildFilters do
           end
         end)
 
-      error_filters = Enum.filter(filters, fn {k, v} -> k == :error end)
+      error_filters = Enum.filter(filters, fn {k, _v} -> k == :error end)
 
       if length(error_filters) > 0 do
-        {:error, error_filters |> Enum.map(fn {k, v} -> v end)}
+        {:error, error_filters |> Enum.map(fn {_k, v} -> v end)}
       else
-        filters = Enum.filter(filters, fn {k, v} -> k == :ok end) |> Enum.map(fn {k, v} -> v end)
+        filters =
+          Enum.filter(filters, fn {k, _v} -> k == :ok end) |> Enum.map(fn {_k, v} -> v end)
+
         {:ok, {logical_op, negate, filters}}
       end
     end

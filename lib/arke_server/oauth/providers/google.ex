@@ -88,7 +88,7 @@ defmodule ArkeServer.OAuth.Provider.Google do
            DatetimeHandler.from_unix(Map.get(decoded, "exp", 0)) > DatetimeHandler.now(:datetime) do
       {:ok, decoded}
     else
-      err ->
+      _err ->
         Error.create(:auth, "invalid token")
     end
   end

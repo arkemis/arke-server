@@ -18,14 +18,10 @@ defmodule ArkeServer.UnitController do
   # Openapi request definition
   use ArkeServer.Openapi.Spec, module: ArkeServer.Openapi.UnitControllerSpec
 
-  alias Arke.{QueryManager, LinkManager, StructManager}
-  alias Arke.Boundary.{ArkeManager, ParameterManager}
+  alias Arke.{QueryManager, StructManager}
   alias UnitSerializer
   alias ArkeServer.ResponseManager
   alias ArkeServer.Utils.{QueryFilters, QueryProcessor}
-
-  alias(ArkeServer.Openapi.Responses)
-  alias OpenApiSpex.{Operation, Reference}
 
   import ArkeServer.ArkeController, only: [data_as_klist: 1]
 
@@ -54,7 +50,7 @@ defmodule ArkeServer.UnitController do
         "unit_id" => _unit_id,
         "arke_id" => _arke_id
       }) do
-    project = conn.assigns[:arke_project]
+    _project = conn.assigns[:arke_project]
     # TODO handle query parameter with plugs
     params = Map.put(params, "runtime_data", %{conn: conn})
     load_links = Map.get(conn.query_params, "load_links", "false") == "true"

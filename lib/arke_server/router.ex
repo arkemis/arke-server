@@ -88,9 +88,9 @@ defmodule ArkeServer.Router do
     # -------- AUTH --------
 
     scope "/health" do
-      get("ready", HealthController, :ready)
-      get("live", HealthController, :live)
-      get("start", HealthController, :start)
+      get("/ready", HealthController, :ready)
+      get("/live", HealthController, :live)
+      get("/start", HealthController, :start)
     end
 
     pipe_through([:openapi])

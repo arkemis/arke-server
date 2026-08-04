@@ -21,22 +21,18 @@ defmodule ArkeServer.GroupController do
   # Openapi request definition
   use ArkeServer.Openapi.Spec, module: ArkeServer.Openapi.GroupControllerSpec
 
-  alias Arke.{QueryManager, LinkManager, StructManager}
+  alias Arke.{QueryManager, StructManager}
   alias Arke.Core.Unit
   alias Arke.Boundary.{ArkeManager, GroupManager}
   alias ArkeServer.ResponseManager
   alias ArkeServer.Utils.{QueryFilters, QueryProcessor}
-
-  alias ArkeServer.Openapi.Responses
-
-  alias OpenApiSpex.{Operation, Reference}
 
   @doc """
   Call Group function
   """
   def call_group_function(conn, %{"group_id" => group_id, "function_name" => function_name}) do
     project = conn.assigns[:arke_project]
-    permission = conn.assigns[:permission_filter] || %{filter: nil}
+    _permission = conn.assigns[:permission_filter] || %{filter: nil}
 
     group =
       GroupManager.get(group_id, project)
@@ -106,9 +102,9 @@ defmodule ArkeServer.GroupController do
     project = conn.assigns[:arke_project]
     member = ArkeAuth.Guardian.get_member(conn, impersonate: true)
     permission = conn.assigns[:permission_filter] || %{filter: nil}
-    offset = Map.get(conn.query_params, "offset", nil)
-    limit = Map.get(conn.query_params, "limit", nil)
-    order = Map.get(conn.query_params, "order", [])
+    _offset = Map.get(conn.query_params, "offset", nil)
+    _limit = Map.get(conn.query_params, "limit", nil)
+    _order = Map.get(conn.query_params, "order", [])
 
     load_links = Map.get(conn.query_params, "load_links", "false") == "true"
     load_values = Map.get(conn.query_params, "load_values", "false") == "true"
@@ -140,9 +136,9 @@ defmodule ArkeServer.GroupController do
     permission = conn.assigns[:permission_filter] || %{filter: nil}
     member = ArkeAuth.Guardian.get_member(conn, impersonate: true)
 
-    load_links = Map.get(conn.query_params, "load_links", "false") == "true"
-    load_values = Map.get(conn.query_params, "load_values", "false") == "true"
-    load_files = Map.get(conn.query_params, "load_files", "false") == "true"
+    _load_links = Map.get(conn.query_params, "load_links", "false") == "true"
+    _load_values = Map.get(conn.query_params, "load_values", "false") == "true"
+    _load_files = Map.get(conn.query_params, "load_files", "false") == "true"
 
     unit =
       QueryManager.query(project: project)
