@@ -218,7 +218,7 @@ defmodule ArkeServer.OAuthController do
   end
 
   defp check_oauth(auth) do
-    username = auth.info.email || UUID.uuid1(:hex)
+    username = auth.info.email || random_token(16)
     email = auth.info.email || "#{username}@foo.domain"
     oauth_id = to_string(auth.uid)
     provider = auth.provider
@@ -254,7 +254,7 @@ defmodule ArkeServer.OAuthController do
 
   defp create_user(user_data) do
     user_model = ArkeManager.get(:user, :arke_system)
-    pwd = UUID.uuid4()
+    pwd = random_token(32)
     updated_data = Map.put(user_data, :password, pwd)
     email = Map.get(user_data, :email)
 
@@ -263,6 +263,9 @@ defmodule ArkeServer.OAuthController do
       user -> {:ok, user}
     end
   end
+
+  defp random_token(bytes),
+    do: bytes |> :crypto.strong_rand_bytes() |> Base.encode16(case: :lower)
 
   defp create_link(parent_id, child_id, provider) do
     LinkManager.add_node(:arke_system, to_string(parent_id), to_string(child_id), "oauth", %{
