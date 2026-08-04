@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-08-04
+
+### Breaking changes
+- `ArkeServer.Telemetry` is removed and arke_server no longer depends on telemetry_metrics or telemetry_poller. It was unused generator boilerplate with no reporter attached. Consumer apps that want metrics wire their own supervisor, and apps relying on the default VM measurements must declare telemetry_poller themselves. by @ilyichv in [#121](https://github.com/arkemis/arke-server/pull/121)
+
+
+### Changed
+- Clear compiler warnings by @ilyichv in [#125](https://github.com/arkemis/arke-server/pull/125)
+- Format pass and lint CI leg by @ilyichv in [#122](https://github.com/arkemis/arke-server/pull/122)
+- Drop telemetry_metrics and telemetry_poller by @ilyichv in [#121](https://github.com/arkemis/arke-server/pull/121)
+
+### Fixed
+- Unreachable auth fallbacks and wrong call shapes by @ilyichv in [#126](https://github.com/arkemis/arke-server/pull/126)
+- Compare oauth token expiry chronologically by @ilyichv in [#124](https://github.com/arkemis/arke-server/pull/124)
+- Generate oauth credentials with crypto by @ilyichv in [#123](https://github.com/arkemis/arke-server/pull/123)
+
 ## [0.6.0] - 2026-08-03
 
 ### Breaking changes
@@ -523,6 +539,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * @ErikFerrari made their first contribution in [#6](https://github.com/arkemis/arke-server/pull/6)
 * @dorianmercatante made their first contribution in [#3](https://github.com/arkemis/arke-server/pull/3)
 
+[0.7.0]: https://github.com/arkemis/arke-server/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/arkemis/arke-server/compare/v0.5.2...v0.6.0
 [0.5.2]: https://github.com/arkemis/arke-server/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/arkemis/arke-server/compare/v0.5.0...v0.5.1
