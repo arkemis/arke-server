@@ -85,7 +85,10 @@ defmodule ArkeServer.OAuth.Provider.Google do
            Map.get(decoded, "iss", nil) in ["https://accounts.google.com", "accounts.google.com"],
          true <- Map.get(decoded, "aud", nil) == app_id,
          true <-
-           DatetimeHandler.from_unix(Map.get(decoded, "exp", 0)) > DatetimeHandler.now(:datetime) do
+           DateTime.compare(
+             DatetimeHandler.from_unix(Map.get(decoded, "exp", 0)),
+             DatetimeHandler.now(:datetime)
+           ) == :gt do
       {:ok, decoded}
     else
       err ->

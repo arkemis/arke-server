@@ -115,7 +115,10 @@ defmodule ArkeServer.OAuth.Provider.Microsoft do
       claims["tid"] != get_key("AZURE_TENANT_ID") ->
         {:error, "Invalid tenant"}
 
-      DatetimeHandler.from_unix(Map.get(claims, "exp", 0)) < DatetimeHandler.now(:datetime) ->
+      DateTime.compare(
+        DatetimeHandler.from_unix(Map.get(claims, "exp", 0)),
+        DatetimeHandler.now(:datetime)
+      ) == :lt ->
         {:error, "Token expired"}
 
       true ->
