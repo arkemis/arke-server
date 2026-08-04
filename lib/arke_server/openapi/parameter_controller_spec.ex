@@ -17,7 +17,5 @@ defmodule ArkeServer.Openapi.OAuthControllerSpec do
   Definition of the ApiSpec for `ArkeServer.OAuthController`.
   """
 
-  alias ArkeServer.Openapi.Responses
-  alias OpenApiSpex.{Operation, Reference}
   # todo: all api operation for oauth
 end

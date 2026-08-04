@@ -108,7 +108,7 @@ defmodule ArkeServer.AuthController do
          arke,
          %{
            "otp" => otp,
-           "arke_system_user" => %{"username" => username},
+           "arke_system_user" => %{"username" => _username},
            "email" => _email,
            "first_name" => _first_name,
            "last_name" => _last_name
@@ -225,7 +225,7 @@ defmodule ArkeServer.AuthController do
   #### GET ######
 
   # TODO improve it in arke_auth
-  def signin(conn, %{"token" => token} = params) do
+  def signin(conn, %{"token" => token} = _params) do
     project = get_project(conn.assigns[:arke_project])
 
     case QueryManager.get_by(project: project, group: :arke_auth_member, auth_token: token) do
@@ -245,13 +245,13 @@ defmodule ArkeServer.AuthController do
           update_member_access_time(member, auth_token: nil)
           ResponseManager.send_resp(conn, 200, %{content: content})
         else
-          {:error, type} ->
+          {:error, _type} ->
             ResponseManager.send_resp(conn, 401, "Unauthorized")
         end
     end
   end
 
-  def signin(conn, %{"auth_token" => auth_token} = params) do
+  def signin(conn, %{"auth_token" => auth_token} = _params) do
     project = get_project(conn.assigns[:arke_project])
 
     case QueryManager.get_by(project: project, arke_id: :temporary_token, id: auth_token) do
@@ -284,7 +284,7 @@ defmodule ArkeServer.AuthController do
                   update_member_access_time(member)
                   ResponseManager.send_resp(conn, 200, %{content: content})
                 else
-                  {:error, type} ->
+                  {:error, _type} ->
                     ResponseManager.send_resp(conn, 401, "Unauthorized")
                 end
             end
@@ -407,7 +407,7 @@ defmodule ArkeServer.AuthController do
 
   defp handle_signin_mode(
          conn,
-         %{"username" => username, "password" => password, "otp" => otp} = params,
+         %{"username" => _username, "password" => _password, "otp" => otp} = params,
          project,
          "otp_mail"
        )
@@ -660,7 +660,7 @@ defmodule ArkeServer.AuthController do
   defp handle_recover_password_mode(
          conn,
          %{"email" => _email, "otp" => otp} = params,
-         %{metadata: %{project: project}} = member,
+         %{metadata: %{project: _project}} = member,
          "otp_mail"
        )
        when is_nil(otp) do

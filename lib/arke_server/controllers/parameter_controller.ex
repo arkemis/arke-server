@@ -27,14 +27,14 @@ defmodule ArkeServer.ParameterController do
   """
   def get_parameter_value(conn, %{"parameter" => parameter_id}) do
     project = conn.assigns[:arke_project]
-    unit = conn.assigns[:unit]
+    _unit = conn.assigns[:unit]
 
     # TODO handle get parameter with plug
-    parameter = ParameterManager.get(parameter_id, project)
+    _parameter = ParameterManager.get(parameter_id, project)
 
-    offset = Map.get(conn.query_params, "offset", 0)
-    limit = Map.get(conn.query_params, "limit", 100)
-    order = Map.get(conn.query_params, "order", [])
+    _offset = Map.get(conn.query_params, "offset", 0)
+    _limit = Map.get(conn.query_params, "limit", 100)
+    _order = Map.get(conn.query_params, "order", [])
 
     # TODO handle query parameters with plugs
     load_links = Map.get(conn.query_params, "load_links", "false") == "true"

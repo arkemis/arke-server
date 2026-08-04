@@ -31,13 +31,13 @@ defmodule ArkeServer.Plugs.Permission do
     check_permission(conn, group_id)
   end
 
-  def call(%Plug.Conn{path_params: %{"parameter_id" => parameter_id}} = conn, _default) do
+  def call(%Plug.Conn{path_params: %{"parameter_id" => _parameter_id}} = conn, _default) do
     # check_permission(conn,parameter_id)
     conn
   end
 
   # handle arke_project and unit global search
-  def call(%Plug.Conn{method: method, request_path: req_path} = conn, default) do
+  def call(%Plug.Conn{method: _method, request_path: req_path} = conn, _default) do
     regex = ~r{/lib/([^/]+)}
     arke_id = Regex.run(regex, req_path) |> List.last()
 
@@ -51,7 +51,7 @@ defmodule ArkeServer.Plugs.Permission do
     end
   end
 
-  def call(conn, default), do: conn
+  def call(conn, _default), do: conn
 
   defp check_permission(%Plug.Conn{method: method} = conn, arke_id) do
     # todo: caipre cosa fare se arke_project non c'è,
@@ -115,7 +115,7 @@ defmodule ArkeServer.Plugs.Permission do
   defp is_permitted?(permission, action), do: Map.get(permission, action, false)
 
   defp parse_method(method), do: String.downcase(method) |> String.to_atom()
-  defp get_permission_filter(conn, %{filter: nil} = permission), do: permission
+  defp get_permission_filter(_conn, %{filter: nil} = permission), do: permission
 
   defp get_permission_filter(conn, permission, member \\ nil) do
     filter = get_member_filter(permission.filter, member)

@@ -13,17 +13,14 @@ defmodule ArkeServer.TopologyController do
   alias UnitSerializer
   alias ArkeServer.ResponseManager
   alias ArkeServer.Utils.{QueryFilters, QueryProcessor}
-  alias ArkeServer.Openapi.Responses
-
-  alias OpenApiSpex.{Operation, Reference}
 
   @doc """
        Get the unit linked to an Arke
   """
   def get_node(conn, %{"arke_id" => _arke_id, "arke_unit_id" => _id, "direction" => direction}) do
-    offset = Map.get(conn.query_params, "offset", nil)
-    limit = Map.get(conn.query_params, "limit", nil)
-    order = Map.get(conn.query_params, "order", [])
+    _offset = Map.get(conn.query_params, "offset", nil)
+    _limit = Map.get(conn.query_params, "limit", nil)
+    _order = Map.get(conn.query_params, "order", [])
 
     # TODO handle query parameter with plugs
     load_links = Map.get(conn.query_params, "load_links", "false") == "true"
@@ -77,8 +74,8 @@ defmodule ArkeServer.TopologyController do
   Link two unit together
   """
   def create_node(%Plug.Conn{body_params: params} = conn, %{
-        "arke_id" => arke_id,
-        "arke_id_two" => arke_id_two,
+        "arke_id" => _arke_id,
+        "arke_id_two" => _arke_id_two,
         "arke_unit_id" => parent_id,
         "link_id" => type,
         "unit_id_two" => child_id

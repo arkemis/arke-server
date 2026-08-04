@@ -17,7 +17,5 @@ defmodule ArkeServer.Openapi.ParameterControllerSpec do
   Definition of the ApiSpec for `ArkeServer.ParameterController`.
   """
 
-  alias ArkeServer.Openapi.Responses
-  alias OpenApiSpex.{Operation, Reference}
   # todo: all api operation for parameter
 end

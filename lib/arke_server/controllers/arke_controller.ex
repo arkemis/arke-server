@@ -22,15 +22,11 @@ defmodule ArkeServer.ArkeController do
   # Openapi request definition
   use ArkeServer.Openapi.Spec, module: ArkeServer.Openapi.ArkeControllerSpec
 
-  alias Arke.{QueryManager, LinkManager, StructManager}
+  alias Arke.{QueryManager, StructManager}
   alias Arke.Boundary.ArkeManager
   alias UnitSerializer
   alias ArkeServer.ResponseManager
-  alias ArkeServer.Utils.{QueryFilters, QueryOrder, QueryProcessor, Permission}
-
-  alias ArkeServer.Openapi.Responses
-
-  alias OpenApiSpex.{Operation, Reference}
+  alias ArkeServer.Utils.{QueryFilters, QueryProcessor}
 
   def data_as_klist(data) do
     Enum.map(data, fn {key, value} -> {String.to_existing_atom(key), value} end)
@@ -110,9 +106,9 @@ defmodule ArkeServer.ArkeController do
     load_links = Map.get(conn.query_params, "load_links", "false") == "true"
     load_values = Map.get(conn.query_params, "load_values", "false") == "true"
     load_files = Map.get(conn.query_params, "load_files", "false") == "true"
-    offset = Map.get(conn.query_params, "offset", nil)
-    limit = Map.get(conn.query_params, "limit", nil)
-    order = Map.get(conn.query_params, "order", [])
+    _offset = Map.get(conn.query_params, "offset", nil)
+    _limit = Map.get(conn.query_params, "limit", nil)
+    _order = Map.get(conn.query_params, "order", [])
 
     {count, units} =
       handle_get_all_unit_query(conn, id)
@@ -197,7 +193,7 @@ defmodule ArkeServer.ArkeController do
   """
   def call_arke_function(conn, %{"arke_id" => arke_id, "function_name" => function_name}) do
     project = conn.assigns[:arke_project]
-    permission = conn.assigns[:permission_filter] || %{filter: nil}
+    _permission = conn.assigns[:permission_filter] || %{filter: nil}
 
     arke =
       ArkeManager.get(arke_id, project) |> Arke.Core.Unit.update(runtime_data: %{conn: conn})

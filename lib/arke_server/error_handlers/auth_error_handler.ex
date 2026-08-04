@@ -20,17 +20,16 @@ defmodule ArkeServer.ErrorHandlers.Auth do
   """
 
   alias Arke.Utils.ErrorGenerator, as: Error
-  import Plug.Conn
 
   @behaviour ArkeAuth.Guardian.Plug.ErrorHandler
   @impl ArkeAuth.Guardian.Plug.ErrorHandler
-  def auth_error(conn, {type, reason}, opts) do
+  def auth_error(conn, {type, _reason}, _opts) do
     {:error, msg} = get_message(type, conn.req_headers)
     ArkeServer.ResponseManager.send_resp(conn, 401, nil, msg)
   end
 
   defp get_message(kwd, headers) do
-    with [_] <- Enum.filter(headers, fn {k, v} -> k == "authorization" end) do
+    with [_] <- Enum.filter(headers, fn {k, _v} -> k == "authorization" end) do
       Error.create(:auth, Atom.to_string(kwd))
     else
       _ -> Error.create(:auth, "missing authorization header")
@@ -46,17 +45,16 @@ defmodule ArkeServer.ErrorHandlers.SSOAuth do
   """
 
   alias Arke.Utils.ErrorGenerator, as: Error
-  import Plug.Conn
 
   @behaviour ArkeAuth.SSOGuardian.Plug.ErrorHandler
   @impl ArkeAuth.SSOGuardian.Plug.ErrorHandler
-  def auth_error(conn, {type, reason}, opts) do
+  def auth_error(conn, {type, _reason}, _opts) do
     {:error, msg} = get_message(type, conn.req_headers)
     ArkeServer.ResponseManager.send_resp(conn, 401, nil, msg)
   end
 
   defp get_message(kwd, headers) do
-    with [_] <- Enum.filter(headers, fn {k, v} -> k == "authorization" end) do
+    with [_] <- Enum.filter(headers, fn {k, _v} -> k == "authorization" end) do
       Error.create(:auth, Atom.to_string(kwd))
     else
       _ -> Error.create(:auth, "missing authorization header")

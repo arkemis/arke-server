@@ -91,7 +91,7 @@ defmodule ArkeServer.OAuth.Provider.Google do
            ) == :gt do
       {:ok, decoded}
     else
-      err ->
+      _err ->
         Error.create(:auth, "invalid token")
     end
   end

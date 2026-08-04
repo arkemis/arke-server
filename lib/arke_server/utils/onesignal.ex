@@ -13,7 +13,7 @@
 # limitations under the License.
 
 defmodule ArkeServer.Utils.OneSignal do
-  def create_user(%{metadata: %{project: project}} = member) do
+  def create_user(%{metadata: %{project: _project}} = member) do
     app_id = System.get_env("ONESIGNAL_APP_ID")
 
     data = %{
@@ -63,7 +63,7 @@ defmodule ArkeServer.Utils.OneSignal do
     call_api(:post, "/notifications", Map.merge(data, custom_data))
   end
 
-  defp call_api(method, path, body, opts \\ []) do
+  defp call_api(method, path, body, _opts \\ []) do
     api_token = System.get_env("ONESIGNAL_API_KEY")
 
     case Req.request(

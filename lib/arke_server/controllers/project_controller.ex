@@ -22,7 +22,7 @@ defmodule ArkeServer.ProjectController do
   # Openapi request definition
   use ArkeServer.Openapi.Spec, module: ArkeServer.Openapi.ProjectControllerSpec
 
-  alias Arke.{QueryManager, LinkManager, StructManager}
+  alias Arke.{QueryManager, StructManager}
   alias Arke.Boundary.ArkeManager
   alias UnitSerializer
   alias ArkeServer.ResponseManager

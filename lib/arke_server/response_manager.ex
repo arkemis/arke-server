@@ -22,7 +22,6 @@ defmodule ArkeServer.ResponseManager do
   If the status is 204 then the body will be empty
 
   """
-  import Plug.Conn
 
   defp get_content(%{items: items, count: count}, _encode) do
     %{content: %{items: items, count: count}}

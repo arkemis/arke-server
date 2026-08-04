@@ -13,7 +13,7 @@ defmodule ArkeServer.Openapi.Responses do
       404 => Operation.response("Not found", "application/json", nil)
     }
 
-    Map.filter(responses, fn {k, v} -> k not in exclude end)
+    Map.filter(responses, fn {k, _v} -> k not in exclude end)
   end
 
   def get_responses(exclude), do: get_responses([exclude])

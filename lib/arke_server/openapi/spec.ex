@@ -19,31 +19,26 @@ defmodule ArkeServer.Openapi.Spec do
       use ArkeServer.Openapi.Spec, module: My.Spec.Module
   """
   defmacro __using__(opts) do
-    apimodule = Keyword.get(opts, :module, nil)
+    case Keyword.get(opts, :module, nil) do
+      nil ->
+        quote do
+          def open_api_operation(_action), do: nil
+        end
 
-    quote do
-      alias ArkeServer.Openapi.Responses
-      alias OpenApiSpex.{Operation, Reference}
+      apimodule ->
+        quote do
+          def open_api_operation(action) do
+            operation = "#{action}_operation"
 
-      def open_api_operation(action) do
-        apimodule = unquote(apimodule)
+            func_list =
+              unquote(apimodule).__info__(:functions)
+              |> Enum.map(fn {func_name, _arity} -> to_string(func_name) end)
 
-        unless is_nil(apimodule) do
-          func_list = get_operation_list(apimodule)
-          operation = "#{action}_operation"
-
-          if operation in func_list do
-            apply(apimodule, String.to_existing_atom(operation), [])
+            if operation in func_list do
+              apply(unquote(apimodule), String.to_existing_atom(operation), [])
+            end
           end
         end
-      end
-
-      defp get_operation_list(nil), do: []
-
-      defp get_operation_list(module) do
-        module.__info__(:functions)
-        |> Enum.map(fn {func_name, _arity} -> to_string(func_name) end)
-      end
     end
   end
 end

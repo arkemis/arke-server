@@ -18,7 +18,7 @@ defmodule ArkeServer.Openapi.AuthControllerSpec do
   """
 
   alias ArkeServer.Openapi.Responses
-  alias OpenApiSpex.{Operation, Reference}
+  alias OpenApiSpex.Operation
 
   def signin_operation() do
     %Operation{

@@ -25,10 +25,6 @@ defmodule ArkeServer.StructController do
   alias Arke.Boundary.ArkeManager
   alias ArkeServer.ResponseManager
 
-  alias ArkeServer.Openapi.Responses
-
-  alias OpenApiSpex.{Operation, Reference}
-
   @doc """
   Get a struct of a unit
   """

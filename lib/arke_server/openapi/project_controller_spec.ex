@@ -17,8 +17,5 @@ defmodule ArkeServer.Openapi.ProjectControllerSpec do
   Definition of the ApiSpec for `ArkeServer.ProjectController`.
   """
 
-  alias ArkeServer.Openapi.Responses
-  alias OpenApiSpex.{Operation, Reference}
-
   # todo: all api operation for project
 end
