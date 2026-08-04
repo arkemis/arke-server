@@ -43,7 +43,7 @@ defmodule ArkeServer.Support.CreateArke do
     parameter(:time_support, :time, default_time: ~T[09:55:13.416444])
   end
 
-  defp base_parameter(opts \\ []) do
+  defp base_parameter(opts) do
     %{
       label: Keyword.get(opts, :label),
       format: Keyword.get(opts, :format, :attribute),

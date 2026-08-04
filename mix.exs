@@ -5,6 +5,8 @@ defmodule ArkeServer.MixProject do
   @scm_url "https://github.com/arkemis/arke-server"
   @site_url "https://arkehub.com"
 
+  @xref_exclude [UeberauthApple]
+
   def project do
     [
       app: :arke_server,
@@ -23,7 +25,7 @@ defmodule ArkeServer.MixProject do
       deps: deps(),
       aliases: aliases(),
       elixirc_paths: elixirc_paths(Mix.env()),
-      elixirc_options: [warnings_as_errors: false],
+      elixirc_options: [no_warn_undefined: @xref_exclude],
       versioning: versioning()
     ]
   end
@@ -64,9 +66,9 @@ defmodule ArkeServer.MixProject do
       {:open_api_spex, "~> 3.16"},
       {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
       {:mimic, "~> 2.3", only: :test},
-      {:arke, "~> 0.7.0"},
-      {:arke_postgres, "~> 0.6.0"},
-      {:arke_auth, "~> 0.5.0"},
+      {:arke, "~> 0.8.0"},
+      {:arke_postgres, "~> 0.7.0"},
+      {:arke_auth, "~> 0.6.0"},
       {:req, "~> 0.7"},
       {:swoosh, "~> 1.11"}
     ])

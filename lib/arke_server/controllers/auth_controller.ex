@@ -292,29 +292,6 @@ defmodule ArkeServer.AuthController do
     end
   end
 
-  defp manage_reusability(project, %{data: %{is_reusable: false}} = token),
-    do: QueryManager.delete(project, token)
-
-  defp manage_reusability(_project, _token), do: nil
-
-  defp validate_temporary_token(token) do
-    case NaiveDateTime.compare(token.data.expiration_datetime, NaiveDateTime.utc_now()) do
-      :lt -> Error.create(:auth, "token expired")
-      :gt -> {:ok, token}
-    end
-  end
-
-  defp get_member(project, token) do
-    case QueryManager.get_by(
-           project: project,
-           group: :arke_auth_member,
-           id: token.data.link_member
-         ) do
-      member -> {:ok, member}
-      _ -> Error.create(:auth, "member not found")
-    end
-  end
-
   #### POST ######
   def signin(conn, %{"username" => username, "password" => password} = params) do
     project = get_project(conn.assigns[:arke_project])
@@ -337,6 +314,29 @@ defmodule ArkeServer.AuthController do
   end
 
   def signin(conn, _params), do: ResponseManager.send_resp(conn, 404, nil)
+
+  defp manage_reusability(project, %{data: %{is_reusable: false}} = token),
+    do: QueryManager.delete(project, token)
+
+  defp manage_reusability(_project, _token), do: nil
+
+  defp validate_temporary_token(token) do
+    case NaiveDateTime.compare(token.data.expiration_datetime, NaiveDateTime.utc_now()) do
+      :lt -> Error.create(:auth, "token expired")
+      :gt -> {:ok, token}
+    end
+  end
+
+  defp get_member(project, token) do
+    case QueryManager.get_by(
+           project: project,
+           group: :arke_auth_member,
+           id: token.data.link_member
+         ) do
+      nil -> Error.create(:auth, "member not found")
+      member -> {:ok, member}
+    end
+  end
 
   defp handle_signin_mode(
          conn,
@@ -571,8 +571,6 @@ defmodule ArkeServer.AuthController do
   defp handle_change_password_mode(conn, _, _, _mode),
     do: params_required(conn, ["old_password", "password"])
 
-  defp handle_change_password_mode(conn, _, _, _), do: auth_not_active(conn)
-
   defp handle_change_password(conn, member, old_pwd, new_pwd) do
     user =
       QueryManager.get_by(project: :arke_system, arke_id: :user, id: member.data.arke_system_user)
@@ -605,7 +603,7 @@ defmodule ArkeServer.AuthController do
       member ->
         case member.arke_id do
           :super_admin ->
-            handle_recover_password(conn, member, params)
+            handle_recover_password(conn, email, "default")
 
           _ ->
             handle_recover_password_mode(conn, params, member, auth_mode)
