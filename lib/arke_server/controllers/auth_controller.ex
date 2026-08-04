@@ -310,8 +310,8 @@ defmodule ArkeServer.AuthController do
            group: :arke_auth_member,
            id: token.data.link_member
          ) do
+      nil -> Error.create(:auth, "member not found")
       member -> {:ok, member}
-      _ -> Error.create(:auth, "member not found")
     end
   end
 
@@ -571,8 +571,6 @@ defmodule ArkeServer.AuthController do
   defp handle_change_password_mode(conn, _, _, _mode),
     do: params_required(conn, ["old_password", "password"])
 
-  defp handle_change_password_mode(conn, _, _, _), do: auth_not_active(conn)
-
   defp handle_change_password(conn, member, old_pwd, new_pwd) do
     user =
       QueryManager.get_by(project: :arke_system, arke_id: :user, id: member.data.arke_system_user)
@@ -605,7 +603,7 @@ defmodule ArkeServer.AuthController do
       member ->
         case member.arke_id do
           :super_admin ->
-            handle_recover_password(conn, member, params)
+            handle_recover_password(conn, email, "default")
 
           _ ->
             handle_recover_password_mode(conn, params, member, auth_mode)

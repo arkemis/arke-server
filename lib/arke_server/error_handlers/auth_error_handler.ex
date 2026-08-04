@@ -21,8 +21,8 @@ defmodule ArkeServer.ErrorHandlers.Auth do
 
   alias Arke.Utils.ErrorGenerator, as: Error
 
-  @behaviour ArkeAuth.Guardian.Plug.ErrorHandler
-  @impl ArkeAuth.Guardian.Plug.ErrorHandler
+  @behaviour Guardian.Plug.ErrorHandler
+  @impl Guardian.Plug.ErrorHandler
   def auth_error(conn, {type, _reason}, _opts) do
     {:error, msg} = get_message(type, conn.req_headers)
     ArkeServer.ResponseManager.send_resp(conn, 401, nil, msg)
@@ -46,8 +46,8 @@ defmodule ArkeServer.ErrorHandlers.SSOAuth do
 
   alias Arke.Utils.ErrorGenerator, as: Error
 
-  @behaviour ArkeAuth.SSOGuardian.Plug.ErrorHandler
-  @impl ArkeAuth.SSOGuardian.Plug.ErrorHandler
+  @behaviour Guardian.Plug.ErrorHandler
+  @impl Guardian.Plug.ErrorHandler
   def auth_error(conn, {type, _reason}, _opts) do
     {:error, msg} = get_message(type, conn.req_headers)
     ArkeServer.ResponseManager.send_resp(conn, 401, nil, msg)
