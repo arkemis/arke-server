@@ -69,7 +69,7 @@ defmodule ArkeServer.Plugs.OAuth do
 
     to_options = build_strategy_options(base_path, {provider_name, {provider, provider_options}})
 
-    run(conn, {provider, to_options})
+    run(conn, {provider, :run_request, to_options})
   end
 
   defp run(conn, {module, :run_request, options}) do

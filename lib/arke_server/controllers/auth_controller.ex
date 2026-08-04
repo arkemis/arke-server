@@ -292,29 +292,6 @@ defmodule ArkeServer.AuthController do
     end
   end
 
-  defp manage_reusability(project, %{data: %{is_reusable: false}} = token),
-    do: QueryManager.delete(project, token)
-
-  defp manage_reusability(_project, _token), do: nil
-
-  defp validate_temporary_token(token) do
-    case NaiveDateTime.compare(token.data.expiration_datetime, NaiveDateTime.utc_now()) do
-      :lt -> Error.create(:auth, "token expired")
-      :gt -> {:ok, token}
-    end
-  end
-
-  defp get_member(project, token) do
-    case QueryManager.get_by(
-           project: project,
-           group: :arke_auth_member,
-           id: token.data.link_member
-         ) do
-      nil -> Error.create(:auth, "member not found")
-      member -> {:ok, member}
-    end
-  end
-
   #### POST ######
   def signin(conn, %{"username" => username, "password" => password} = params) do
     project = get_project(conn.assigns[:arke_project])
@@ -337,6 +314,29 @@ defmodule ArkeServer.AuthController do
   end
 
   def signin(conn, _params), do: ResponseManager.send_resp(conn, 404, nil)
+
+  defp manage_reusability(project, %{data: %{is_reusable: false}} = token),
+    do: QueryManager.delete(project, token)
+
+  defp manage_reusability(_project, _token), do: nil
+
+  defp validate_temporary_token(token) do
+    case NaiveDateTime.compare(token.data.expiration_datetime, NaiveDateTime.utc_now()) do
+      :lt -> Error.create(:auth, "token expired")
+      :gt -> {:ok, token}
+    end
+  end
+
+  defp get_member(project, token) do
+    case QueryManager.get_by(
+           project: project,
+           group: :arke_auth_member,
+           id: token.data.link_member
+         ) do
+      nil -> Error.create(:auth, "member not found")
+      member -> {:ok, member}
+    end
+  end
 
   defp handle_signin_mode(
          conn,

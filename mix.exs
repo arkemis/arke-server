@@ -5,6 +5,8 @@ defmodule ArkeServer.MixProject do
   @scm_url "https://github.com/arkemis/arke-server"
   @site_url "https://arkehub.com"
 
+  @xref_exclude [UeberauthApple]
+
   def project do
     [
       app: :arke_server,
@@ -23,7 +25,7 @@ defmodule ArkeServer.MixProject do
       deps: deps(),
       aliases: aliases(),
       elixirc_paths: elixirc_paths(Mix.env()),
-      elixirc_options: [warnings_as_errors: false],
+      elixirc_options: [warnings_as_errors: false, no_warn_undefined: @xref_exclude],
       versioning: versioning()
     ]
   end
