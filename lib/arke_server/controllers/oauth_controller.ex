@@ -296,32 +296,37 @@ defmodule ArkeServer.OAuthController do
         oauth_model = ArkeManager.get(provider_arke_id, :arke_system)
         # create the unit in the given provider and with the given uid
 
-        with {:ok, oauth_unit} <- QueryManager.create(:arke_system, oauth_model, oauth_user_data),
-             # create also a user
-             {:ok, user} <- create_user(oauth_user_data),
-             # connect the two
-             {:ok, _link} <- create_link(user.id, oauth_unit.id, provider) do
-          {:ok, user}
-        else
-          {:error, msg} -> {:error, msg}
-          err -> raise err
-        end
+        QueryManager.transaction(:arke_system, fn ->
+          with {:ok, oauth_unit} <-
+                 QueryManager.create(:arke_system, oauth_model, oauth_user_data),
+               # create also a user
+               {:ok, user} <- create_user(oauth_user_data),
+               # connect the two
+               {:ok, _link} <- create_link(user.id, oauth_unit.id, provider) do
+            {:ok, user}
+          else
+            {:error, msg} -> {:error, msg}
+            err -> raise err
+          end
+        end)
 
       oauth_unit ->
         # check if there is a link between the given oauth_unit and an user
         case get_link(oauth_unit, :parent) do
           [] ->
             # create a user and connect the two
-            with {:ok, user} <- create_user(oauth_user_data),
-                 {:ok, _link} <- create_link(user.id, oauth_unit.id, provider) do
-              {:ok, user}
-            else
-              {:error, msg} ->
-                {:error, msg}
+            QueryManager.transaction(:arke_system, fn ->
+              with {:ok, user} <- create_user(oauth_user_data),
+                   {:ok, _link} <- create_link(user.id, oauth_unit.id, provider) do
+                {:ok, user}
+              else
+                {:error, msg} ->
+                  {:error, msg}
 
-              error ->
-                raise error
-            end
+                error ->
+                  raise error
+              end
+            end)
 
           # everything good log in
           user_list ->

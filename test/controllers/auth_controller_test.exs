@@ -155,6 +155,39 @@ defmodule ArkeServer.AuthControllerTest do
     end
   end
 
+  describe "POST /lib/auth/reset_password" do
+    test "updates the password and consumes the token", %{conn: conn} do
+      user = get_user("user_reset")
+
+      token_model = ArkeManager.get(:reset_password_token, :arke_system)
+
+      {:ok, token_unit} =
+        QueryManager.create(:arke_system, token_model, user_id: to_string(user.id))
+
+      post(conn, "/lib/auth/reset_password",
+        token: token_unit.data.token,
+        new_password: "changed_password"
+      )
+      |> json_response(200)
+
+      assert QueryManager.get_by(
+               project: :arke_system,
+               arke_id: :reset_password_token,
+               token: token_unit.data.token
+             ) == nil
+
+      post(conn, "/lib/auth/signin", username: "user_reset", password: "changed_password")
+      |> json_response(200)
+
+      delete_user("user_reset")
+    end
+
+    test "answers 400 for an unknown token", %{conn: conn} do
+      post(conn, "/lib/auth/reset_password", token: "no_such_token", new_password: "whatever")
+      |> json_response(400)
+    end
+  end
+
   describe "POST /lib/auth/recover_password" do
     # The super_admin branch needs a member arke carrying an `email` parameter, which
     # neither super_admin nor member_public declares, so only the miss is reachable here.
