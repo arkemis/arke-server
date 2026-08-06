@@ -131,14 +131,19 @@ defmodule ArkeServer.AuthControllerTest do
     end
 
     test "answers 403 when the token points at a member that no longer exists", %{conn: conn} do
+      user = get_user("user_authtoken_gone")
+      member = get_member(user)
+
       {:ok, token} =
         ArkeAuth.Core.TemporaryToken.generate_auth_token(
           :test_schema,
-          "member_that_does_not_exist",
+          member,
           %{days: 1},
           true,
           []
         )
+
+      {:ok, nil} = QueryManager.delete(:test_schema, member)
 
       body = post(conn, "/lib/auth/signin", auth_token: to_string(token.id)) |> json_response(403)
 
