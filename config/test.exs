@@ -5,6 +5,7 @@ config :arke,
     arke_postgres: %{
       create: &ArkePostgres.create/2,
       update: &ArkePostgres.update/2,
+      update_key: &ArkePostgres.update_key/2,
       delete: &ArkePostgres.delete/2,
       execute_query: &ArkePostgres.Query.execute/2,
       create_project: &ArkePostgres.create_project/1,
