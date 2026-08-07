@@ -31,6 +31,10 @@
   end
   ```
 
+- Custom controllers performing several writes must wrap them in
+  `Arke.QueryManager.transaction/3` (arke ≥ 0.9.0) and return
+  `{:error, reason}` to roll back — the built-in signup, reset-password and
+  OAuth flows already do.
 - Mailer: `use ArkeServer.Mailer`, override `signin/3`, `signup/3`,
   `reset_password/3`, send with `send_email/1` (`:to` required; `:from` falls
   back to the configured `default_sender`, else raises):
