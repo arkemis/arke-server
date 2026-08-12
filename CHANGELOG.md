@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0-rc.0] - 2026-08-12
+
+### Breaking changes
+- `arke ~> 0.9.0-rc`, `arke_postgres ~> 0.8.0-rc` and `arke_auth ~> 0.7.0-rc` are now required, inheriting their breaking changes; reset password now answers `400` instead of `200` when the password write or the token/OTP consumption fails, where the OTP path previously discarded the result entirely; a signup whose member create fails no longer consumes the OTP, so the code stays valid for a retry; and none of this atomicity applies unless the persistence map registers `transaction: &ArkePostgres.transaction/2`, which `Arke.QueryManager` silently replaces with a pass-through when absent. by @ilyichv in [#128](https://github.com/arkemis/arke-server/pull/128)
+
+
+### Changed
+- Run on maintenance branches by @ilyichv
+
+### Fixed
+- Make auth write chains atomic by @ilyichv in [#128](https://github.com/arkemis/arke-server/pull/128)
+
 ## [0.7.0] - 2026-08-04
 
 ### Breaking changes
@@ -539,6 +551,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * @ErikFerrari made their first contribution in [#6](https://github.com/arkemis/arke-server/pull/6)
 * @dorianmercatante made their first contribution in [#3](https://github.com/arkemis/arke-server/pull/3)
 
+[0.8.0-rc.0]: https://github.com/arkemis/arke-server/compare/v0.7.0...v0.8.0-rc.0
 [0.7.0]: https://github.com/arkemis/arke-server/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/arkemis/arke-server/compare/v0.5.2...v0.6.0
 [0.5.2]: https://github.com/arkemis/arke-server/compare/v0.5.1...v0.5.2
