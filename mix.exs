@@ -66,9 +66,9 @@ defmodule ArkeServer.MixProject do
       {:open_api_spex, "~> 3.16"},
       {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
       {:mimic, "~> 2.3", only: :test},
-      {:arke, "~> 0.8.0"},
-      {:arke_postgres, "~> 0.7.0"},
-      {:arke_auth, "~> 0.6.0"},
+      {:arke, "~> 0.9.0-rc.0"},
+      {:arke_postgres, "~> 0.8.0-rc.0"},
+      {:arke_auth, "~> 0.7.0-rc.0"},
       {:req, "~> 0.7"},
       {:swoosh, "~> 1.11"}
     ])

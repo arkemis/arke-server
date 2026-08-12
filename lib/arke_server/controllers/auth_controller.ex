@@ -151,8 +151,7 @@ defmodule ArkeServer.AuthController do
                 ResponseManager.send_resp(conn, 410, nil, "Gone")
 
               :gt ->
-                QueryManager.delete(project, otp_unit)
-                handle_signup(conn, arke, params, project)
+                handle_signup(conn, arke, params, project, otp_unit)
             end
 
           false ->
@@ -170,14 +169,15 @@ defmodule ArkeServer.AuthController do
          conn,
          arke,
          req_params,
-         project
+         project,
+         otp_unit \\ nil
        ) do
     {_, params} = Map.pop(req_params, "otp")
 
     with {:ok, params, arke_system_user} <-
            check_user_on_signup(params, Map.get(params, "arke_system_user", nil)),
          params = Map.put(params, "last_access_time", NaiveDateTime.utc_now()),
-         {:ok, _member} <- QueryManager.create(project, arke, data_as_klist(params)) do
+         {:ok, _member} <- create_member_consuming_otp(project, arke, params, otp_unit) do
       username = Map.get(arke_system_user, "username", nil)
       password = Map.get(arke_system_user, "password", nil)
 
@@ -199,6 +199,16 @@ defmodule ArkeServer.AuthController do
     else
       {:error, errors} -> ResponseManager.send_resp(conn, 400, errors)
     end
+  end
+
+  defp create_member_consuming_otp(project, arke, params, nil),
+    do: QueryManager.create(project, arke, data_as_klist(params))
+
+  defp create_member_consuming_otp(project, arke, params, otp_unit) do
+    QueryManager.transaction(project, fn ->
+      with {:ok, nil} <- QueryManager.delete(project, otp_unit),
+           do: QueryManager.create(project, arke, data_as_klist(params))
+    end)
   end
 
   defp check_user_on_signup(_params, arke_system_user)
@@ -748,8 +758,12 @@ defmodule ArkeServer.AuthController do
          {:ok, token_unit} <- check_token_expiration(token_unit),
          %Arke.Core.Unit{} = user <-
            QueryManager.get_by(id: token_unit.data.user_id, project: :arke_system),
-         {:ok, _updated_user} <- User.update_password(user, new_password) do
-      QueryManager.delete(:arke_system, token_unit)
+         {:ok, _updated_user} <-
+           QueryManager.transaction(:arke_system, fn ->
+             with {:ok, updated_user} <- User.update_password(user, new_password),
+                  {:ok, nil} <- QueryManager.delete(:arke_system, token_unit),
+                  do: {:ok, updated_user}
+           end) do
       ResponseManager.send_resp(conn, 200, nil)
     else
       nil ->
@@ -787,8 +801,6 @@ defmodule ArkeServer.AuthController do
                 ResponseManager.send_resp(conn, 410, nil, "Gone")
 
               :gt ->
-                QueryManager.delete(project, otp_unit)
-
                 user =
                   QueryManager.get_by(
                     id: member.data.arke_system_user,
@@ -796,8 +808,14 @@ defmodule ArkeServer.AuthController do
                     project: :arke_system
                   )
 
-                User.update_password(user, new_password)
-                ResponseManager.send_resp(conn, 200, nil, nil)
+                QueryManager.transaction(project, fn ->
+                  with {:ok, nil} <- QueryManager.delete(project, otp_unit),
+                       do: User.update_password(user, new_password)
+                end)
+                |> case do
+                  {:ok, _} -> ResponseManager.send_resp(conn, 200, nil, nil)
+                  {:error, msg} -> ResponseManager.send_resp(conn, 400, nil, msg)
+                end
             end
 
           false ->

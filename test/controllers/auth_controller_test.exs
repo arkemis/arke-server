@@ -131,14 +131,19 @@ defmodule ArkeServer.AuthControllerTest do
     end
 
     test "answers 403 when the token points at a member that no longer exists", %{conn: conn} do
+      user = get_user("user_authtoken_gone")
+      member = get_member(user)
+
       {:ok, token} =
         ArkeAuth.Core.TemporaryToken.generate_auth_token(
           :test_schema,
-          "member_that_does_not_exist",
+          member,
           %{days: 1},
           true,
           []
         )
+
+      {:ok, nil} = QueryManager.delete(:test_schema, member)
 
       body = post(conn, "/lib/auth/signin", auth_token: to_string(token.id)) |> json_response(403)
 
@@ -147,6 +152,39 @@ defmodule ArkeServer.AuthControllerTest do
 
     test "answers 401 for an unknown auth_token", %{conn: conn} do
       post(conn, "/lib/auth/signin", auth_token: "no_such_token") |> json_response(401)
+    end
+  end
+
+  describe "POST /lib/auth/reset_password" do
+    test "updates the password and consumes the token", %{conn: conn} do
+      user = get_user("user_reset")
+
+      token_model = ArkeManager.get(:reset_password_token, :arke_system)
+
+      {:ok, token_unit} =
+        QueryManager.create(:arke_system, token_model, user_id: to_string(user.id))
+
+      post(conn, "/lib/auth/reset_password",
+        token: token_unit.data.token,
+        new_password: "changed_password"
+      )
+      |> json_response(200)
+
+      assert QueryManager.get_by(
+               project: :arke_system,
+               arke_id: :reset_password_token,
+               token: token_unit.data.token
+             ) == nil
+
+      post(conn, "/lib/auth/signin", username: "user_reset", password: "changed_password")
+      |> json_response(200)
+
+      delete_user("user_reset")
+    end
+
+    test "answers 400 for an unknown token", %{conn: conn} do
+      post(conn, "/lib/auth/reset_password", token: "no_such_token", new_password: "whatever")
+      |> json_response(400)
     end
   end
 

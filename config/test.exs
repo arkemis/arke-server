@@ -3,12 +3,14 @@ import Config
 config :arke,
   persistence: %{
     arke_postgres: %{
+      transaction: &ArkePostgres.transaction/2,
       create: &ArkePostgres.create/2,
       update: &ArkePostgres.update/2,
+      update_key: &ArkePostgres.update_key/2,
       delete: &ArkePostgres.delete/2,
       execute_query: &ArkePostgres.Query.execute/2,
-      create_project: &ArkePostgres.create_project/1,
-      delete_project: &ArkePostgres.delete_project/1,
+      create_project: &ArkeServer.Support.ProjectSchemaStub.create_project/1,
+      delete_project: &ArkeServer.Support.ProjectSchemaStub.delete_project/1,
       repo: ArkePostgres.Repo,
       init: &ArkePostgres.init/0
     }
