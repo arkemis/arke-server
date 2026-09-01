@@ -58,7 +58,7 @@ defmodule ArkeServer.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     List.flatten([
-      {:phoenix, "~> 1.7.0"},
+      {:phoenix, "~> 1.8.13"},
       {:jason, "~> 1.2"},
       {:plug_cowboy, "~> 2.5"},
       {:corsica, "~> 1.2"},
