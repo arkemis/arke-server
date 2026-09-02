@@ -189,11 +189,63 @@ defmodule ArkeServer.AuthControllerTest do
   end
 
   describe "POST /lib/auth/recover_password" do
+    setup [:create_user_setup]
+
     # The super_admin branch needs a member arke carrying an `email` parameter, which
     # neither super_admin nor member_public declares, so only the miss is reachable here.
-    test "answers 404 when no member carries the email", %{conn: conn} do
-      post(conn, "/lib/auth/recover_password", email: "nobody@arke.test")
-      |> json_response(404)
+    test "answers the same body whether or not the email is known", %{conn: conn} do
+      known =
+        post(conn, "/lib/auth/recover_password", email: "user2@arke.test")
+        |> json_response(200)
+
+      unknown =
+        build_conn()
+        |> Plug.Conn.put_req_header("arke-project-key", "test_schema")
+        |> post("/lib/auth/recover_password", email: "nobody@arke.test")
+        |> json_response(200)
+
+      # Check if we got the same response for both
+      assert known == unknown
+      assert known["content"] == "An email has been sent to the given email"
+
+      # The known email still went through the real flow
+      # so we check if a reset_password_token was created
+      user = QueryManager.get_by(project: :arke_system, username: "user2")
+
+      assert QueryManager.filter_by(
+               project: :arke_system,
+               arke_id: :reset_password_token,
+               user_id: to_string(user.id)
+             ) != []
+
+      delete_user("user2")
+    end
+  end
+
+  describe "password recovery in otp_mail mode" do
+    setup do
+      System.put_env("AUTH_MODE", "otp_mail")
+      on_exit(fn -> System.delete_env("AUTH_MODE") end)
+      :ok
+    end
+
+    test "recover_password reports the OTP as sent when no member carries the email", %{
+      conn: conn
+    } do
+      body =
+        post(conn, "/lib/auth/recover_password", email: "nobody@arke.test", otp: nil)
+        |> json_response(200)
+
+      assert body["content"] == "OTP send successfully"
+    end
+
+    test "reset_password answers 401 when no member carries the email", %{conn: conn} do
+      post(conn, "/lib/auth/reset_password",
+        email: "nobody@arke.test",
+        new_password: "password",
+        otp: "000000"
+      )
+      |> json_response(401)
     end
   end
 

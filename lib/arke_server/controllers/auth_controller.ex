@@ -607,8 +607,7 @@ defmodule ArkeServer.AuthController do
 
     case QueryManager.get_by(project: project, group_id: :arke_auth_member, email: email) do
       nil ->
-        {:error, msg} = Error.create(:auth, "member not found with given email")
-        ResponseManager.send_resp(conn, 404, msg)
+        handle_recover_password_mode(conn, params, nil, auth_mode)
 
       member ->
         case member.arke_id do
@@ -679,6 +678,15 @@ defmodule ArkeServer.AuthController do
       "otp_mail"
     )
   end
+
+  defp handle_recover_password_mode(
+         conn,
+         %{"email" => _email, "otp" => otp},
+         nil,
+         "otp_mail"
+       )
+       when is_nil(otp),
+       do: ResponseManager.send_resp(conn, 200, %{content: "OTP send successfully"})
 
   defp handle_recover_password_mode(conn, _, _, "otp_mail"),
     do: params_required(conn, ["email", "otp"])
@@ -823,6 +831,14 @@ defmodule ArkeServer.AuthController do
         end
     end
   end
+
+  defp handle_reset_password_mode(
+         conn,
+         %{"new_password" => _new_password, "otp" => _otp},
+         nil,
+         "otp_mail"
+       ),
+       do: ResponseManager.send_resp(conn, 401, nil, "Unauthorized")
 
   defp get_project(project) when is_nil(project), do: :arke_system
   defp get_project(project), do: project
