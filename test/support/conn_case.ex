@@ -40,6 +40,30 @@ defmodule ArkeServer.ConnCase do
         |> Plug.Conn.put_req_header("arke-project-key", "test_schema")
       end
 
+      # A token for an arke_system member of `user`: project management under
+      # /lib/arke_project runs in arke_system.
+      def build_system_conn(user \\ get_user()) do
+        member =
+          with nil <-
+                 QueryManager.get_by(
+                   project: :arke_system,
+                   group_id: "arke_auth_member",
+                   arke_system_user: to_string(user.id)
+                 ) do
+            {:ok, member} =
+              QueryManager.create(:arke_system, ArkeManager.get(:super_admin, :arke_system), %{
+                arke_system_user: to_string(user.id)
+              })
+
+            member
+          end
+
+        {:ok, token, _} = Guardian.encode_and_sign(member)
+
+        Phoenix.ConnTest.build_conn()
+        |> Plug.Conn.put_req_header("authorization", "Bearer #{token}")
+      end
+
       defp get_user_params(username \\ "user_test"),
         do: [
           username: username,

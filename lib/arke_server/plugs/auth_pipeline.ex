@@ -28,6 +28,7 @@ defmodule ArkeServer.Plugs.AuthPipeline do
   plug(Guardian.Plug.VerifyHeader, scheme: "Bearer", claims: %{"typ" => "access"})
   plug(Guardian.Plug.EnsureAuthenticated)
   plug(Guardian.Plug.LoadResource)
+  plug(ArkeServer.Plugs.EnsureTokenProject)
 end
 
 defmodule ArkeServer.Plugs.ImpersonateAuthPipeline do
@@ -53,6 +54,9 @@ defmodule ArkeServer.Plugs.ImpersonateAuthPipeline do
 
   plug(Guardian.Plug.EnsureAuthenticated, key: :impersonate)
   plug(Guardian.Plug.LoadResource, key: :impersonate)
+  # The impersonated member acts in the requested project. The impersonator
+  # may come from another project (e.g. an arke_system admin).
+  plug(ArkeServer.Plugs.EnsureTokenProject, key: :impersonate)
 end
 
 defmodule ArkeServer.Plugs.NotAuthPipeline do

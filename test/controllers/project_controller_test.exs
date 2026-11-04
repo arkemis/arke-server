@@ -24,7 +24,7 @@ defmodule ArkeServer.ProjectControllerTest do
       }
 
       conn =
-        build_authenticated_conn(user)
+        build_system_conn(user)
         |> post("/lib/arke_project/unit", project_params)
 
       body_resp = json_response(conn, 200)
@@ -45,7 +45,7 @@ defmodule ArkeServer.ProjectControllerTest do
       user = get_user()
 
       conn =
-        build_authenticated_conn(user)
+        build_system_conn(user)
         |> get("/lib/arke_project/unit")
 
       body_resp = json_response(conn, 200)
@@ -63,7 +63,7 @@ defmodule ArkeServer.ProjectControllerTest do
       user = get_user()
 
       conn =
-        build_authenticated_conn(user)
+        build_system_conn(user)
         |> get("/lib/arke_project/unit/test_schema")
 
       body_resp = json_response(conn, 200)
@@ -85,7 +85,7 @@ defmodule ArkeServer.ProjectControllerTest do
       }
 
       conn =
-        build_authenticated_conn(user)
+        build_system_conn(user)
         |> post("/lib/arke_project/unit", project_params)
 
       body_resp = json_response(conn, 200)
@@ -100,7 +100,7 @@ defmodule ArkeServer.ProjectControllerTest do
       }
 
       conn =
-        build_authenticated_conn(user)
+        build_system_conn(user)
         |> put("/lib/arke_project/unit/#{db_project.id}", project_params_update)
 
       db_project_updated =
@@ -132,7 +132,7 @@ defmodule ArkeServer.ProjectControllerTest do
       }
 
       conn =
-        build_authenticated_conn(user)
+        build_system_conn(user)
         |> post("/lib/arke_project/unit", project_params)
 
       body_resp = json_response(conn, 200)
@@ -142,7 +142,7 @@ defmodule ArkeServer.ProjectControllerTest do
 
       # DELETE
       conn =
-        build_authenticated_conn(user)
+        build_system_conn(user)
         |> delete("/lib/arke_project/unit/#{db_project.id}")
 
       db_project_updated =
