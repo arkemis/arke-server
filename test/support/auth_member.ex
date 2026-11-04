@@ -21,7 +21,16 @@ defmodule ArkeServer.Support.AuthMember do
         label: "Test auth member"
       })
 
-      for parameter <- ["arke_system_user", "email"],
+      # arke_auth reads `inactive` but no registry defines it
+      if is_nil(Arke.Boundary.ParameterManager.get(:inactive, @project)) do
+        QueryManager.create(@project, ArkeManager.get(:boolean, :arke_system), %{
+          id: "inactive",
+          label: "Inactive",
+          default_boolean: false
+        })
+      end
+
+      for parameter <- ["arke_system_user", "email", "inactive"],
           do: LinkManager.add_node(@project, to_string(@arke_id), parameter, "parameter")
     end
 

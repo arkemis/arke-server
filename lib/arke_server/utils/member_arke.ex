@@ -25,6 +25,24 @@ defmodule ArkeServer.Utils.MemberArke do
 
   @never [:super_admin]
 
+  # Fields a client must not choose for the member it creates: they identify
+  # it or drive access (login rejection, permission lockout, token sign-in).
+  @protected_fields ~w(id arke_id metadata inactive subscription_active auth_token)
+
+  @doc """
+  Removes from client `params` the member fields only the server or an admin
+  may set. Extend the list with
+  `config :arke_server, :protected_member_fields, ["role", ...]`.
+  """
+  @spec drop_protected(map()) :: map()
+  def drop_protected(params) when is_map(params) do
+    protected =
+      @protected_fields ++
+        Enum.map(Application.get_env(:arke_server, :protected_member_fields, []), &to_string/1)
+
+    Map.drop(params, protected)
+  end
+
   @doc "Whether anyone may sign up as a member of `arke_id` in `project`."
   @spec self_signup?(atom() | String.t() | nil, atom()) :: boolean()
   def self_signup?(arke_id, project), do: allowed?(arke_id, :self_signup, project)
