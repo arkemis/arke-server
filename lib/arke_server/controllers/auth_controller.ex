@@ -87,12 +87,18 @@ defmodule ArkeServer.AuthController do
   def signup(%{body_params: params} = conn, %{"arke_id" => arke_id}) do
     project = get_project(conn.assigns[:arke_project])
     auth_mode = System.get_env("AUTH_MODE", "default")
-    arke = ArkeManager.get(arke_id, project)
 
-    with %Arke.Core.Unit{} = unit <- Arke.Core.Unit.load(arke, data_as_klist(params), :create),
-         {:ok, _unit} <- Arke.Validator.validate(unit, :create, project),
-         do: handle_signup_mode(conn, arke, params, project, auth_mode),
-         else: ({:error, errors} -> ResponseManager.send_resp(conn, 400, errors))
+    # Only the member arkes in the self_signup group are open to sign-up;
+    # any other arke, super_admin above all, is created by an admin.
+    with true <- ArkeServer.Utils.MemberArke.self_signup?(arke_id, project),
+         arke = ArkeManager.get(arke_id, project),
+         %Arke.Core.Unit{} = unit <- Arke.Core.Unit.load(arke, data_as_klist(params), :create),
+         {:ok, _unit} <- Arke.Validator.validate(unit, :create, project) do
+      handle_signup_mode(conn, arke, params, project, auth_mode)
+    else
+      false -> send_error(conn, 403, Error.create(:auth, "signup not allowed"))
+      {:error, errors} -> ResponseManager.send_resp(conn, 400, errors)
+    end
   end
 
   defp handle_signup_mode(

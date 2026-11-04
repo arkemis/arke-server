@@ -157,7 +157,7 @@ defmodule ArkeServer.AuthOtpTest do
     end
 
     test "the signup code is checked the same way", %{conn: conn} do
-      AuthMember.ensure_arke()
+      AuthMember.ensure_arke(["arke_auth_member", "self_signup"])
       username = "otp_signup@arke.test"
       {:ok, otp} = Otp.generate(:test_schema, username, "signup")
 
