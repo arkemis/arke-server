@@ -262,4 +262,19 @@ defmodule ArkeServer.AuthControllerTest do
              "username" => "e"
            }
   end
+
+  describe "POST /lib/auth/recover_password" do
+    test "answers 200 when no member carries the email", %{conn: conn} do
+      body = post(conn, "/lib/auth/recover_password", email: "nobody@arke.test")
+
+      assert body.status == 200
+      assert body.resp_body =~ "An email has been sent"
+    end
+  end
+
+  describe "POST /lib/auth/reset_password without the required params" do
+    test "answers 400 instead of crashing", %{conn: conn} do
+      post(conn, "/lib/auth/reset_password", new_password: "whatever") |> json_response(400)
+    end
+  end
 end

@@ -179,4 +179,26 @@ defmodule ArkeServer.AuthOtpTest do
       assert signup.(otp.data.code) |> json_response(200)
     end
   end
+
+  describe "unknown emails (no account enumeration)" do
+    test "recover_password answers as for a known email", %{conn: conn} do
+      {user, _member} = AuthMember.create_user("recover_known")
+
+      known = post(conn, "/lib/auth/recover_password", %{email: user.data.email, otp: nil})
+      unknown = post(conn, "/lib/auth/recover_password", %{email: "nobody@arke.test", otp: nil})
+
+      assert known.status == 200
+      assert unknown.status == known.status
+      assert unknown.resp_body == known.resp_body
+    end
+
+    test "reset_password answers 401 instead of crashing", %{conn: conn} do
+      post(conn, "/lib/auth/reset_password", %{
+        email: "nobody@arke.test",
+        otp: "123456",
+        new_password: "whatever"
+      })
+      |> json_response(401)
+    end
+  end
 end
