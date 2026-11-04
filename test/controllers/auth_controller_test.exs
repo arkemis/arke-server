@@ -277,4 +277,25 @@ defmodule ArkeServer.AuthControllerTest do
       post(conn, "/lib/auth/reset_password", new_password: "whatever") |> json_response(400)
     end
   end
+
+  describe "POST /lib/auth/signin with an auth_token, token claims" do
+    test "signs only the member's public fields into the token", %{conn: conn} do
+      user = get_user("user_authtoken_claims")
+      member = get_member(user)
+
+      {:ok, token} =
+        ArkeAuth.Core.TemporaryToken.generate_auth_token(:test_schema, member, 1, true, [])
+
+      body = post(conn, "/lib/auth/signin", auth_token: to_string(token.id)) |> json_response(200)
+      {:ok, claims} = Guardian.decode_and_verify(body["content"]["access_token"])
+
+      assert claims["sub"]["id"] == to_string(member.id)
+      assert claims["sub"]["project"] == "test_schema"
+
+      assert Map.keys(claims["sub"]) --
+               ~w(id project email first_name last_name subscription_active) == []
+
+      delete_user("user_authtoken_claims")
+    end
+  end
 end

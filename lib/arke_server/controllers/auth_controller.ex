@@ -246,9 +246,8 @@ defmodule ArkeServer.AuthController do
         ResponseManager.send_resp(conn, 401, "Unauthorized")
 
       member ->
-        with {:ok, access_token, _claims} <- ArkeAuth.Guardian.encode_and_sign(member, %{}),
-             {:ok, refresh_token, _claims} <-
-               ArkeAuth.Guardian.encode_and_sign(member, %{}, token_type: "refresh") do
+        with {:ok, _resource, access_token, refresh_token} <-
+               Auth.create_tokens(Auth.format_member(member)) do
           content =
             Map.merge(Arke.StructManager.encode(member, type: :json), %{
               access_token: access_token,
@@ -282,10 +281,8 @@ defmodule ArkeServer.AuthController do
                 ResponseManager.send_resp(conn, 403, errors)
 
               {:ok, member} ->
-                with {:ok, access_token, _claims} <-
-                       ArkeAuth.Guardian.encode_and_sign(member, %{}),
-                     {:ok, refresh_token, _claims} <-
-                       ArkeAuth.Guardian.encode_and_sign(member, %{}, token_type: "refresh") do
+                with {:ok, _resource, access_token, refresh_token} <-
+                       Auth.create_tokens(Auth.format_member(member)) do
                   manage_reusability(project, temporary_token)
 
                   content =

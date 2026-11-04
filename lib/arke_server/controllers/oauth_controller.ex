@@ -97,7 +97,7 @@ defmodule ArkeServer.OAuthController do
           case create_member(project, user, params, member_id) do
             {:ok, member} ->
               {:ok, resource_member, access_token, refresh_token} =
-                Auth.create_tokens(member, "default")
+                Auth.create_tokens(Auth.format_member(member), "default")
 
               content = create_response_body(resource_member, access_token, refresh_token, false)
 
