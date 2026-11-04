@@ -310,12 +310,20 @@ defmodule ArkeServer.AuthController do
 
   defp manage_reusability(_project, _token), do: nil
 
-  defp validate_temporary_token(token) do
-    case NaiveDateTime.compare(token.data.expiration_datetime, NaiveDateTime.utc_now()) do
-      :lt -> Error.create(:auth, "token expired")
-      :gt -> {:ok, token}
-    end
-  end
+  # A token is valid strictly before its expiry. arke_auth always sets one, so
+  # a token without it is treated as expired.
+  defp validate_temporary_token(%{data: %{expiration_datetime: %DateTime{} = expiry}} = token),
+    do: check_expiry(token, DateTime.compare(expiry, DateTime.utc_now()))
+
+  defp validate_temporary_token(
+         %{data: %{expiration_datetime: %NaiveDateTime{} = expiry}} = token
+       ),
+       do: check_expiry(token, NaiveDateTime.compare(expiry, NaiveDateTime.utc_now()))
+
+  defp validate_temporary_token(_token), do: Error.create(:auth, "token expired")
+
+  defp check_expiry(token, :gt), do: {:ok, token}
+  defp check_expiry(_token, _comparison), do: Error.create(:auth, "token expired")
 
   defp get_member(project, token) do
     case QueryManager.get_by(

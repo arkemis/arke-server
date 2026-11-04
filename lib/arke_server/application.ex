@@ -21,6 +21,8 @@ defmodule ArkeServer.Application do
 
   @impl true
   def start(_type, _args) do
+    filter_sensitive_parameters()
+
     children = [
       # Start the Telemetry supervisor
       ArkeServer.Telemetry,
@@ -34,6 +36,29 @@ defmodule ArkeServer.Application do
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: ArkeServer.Supervisor]
     Supervisor.start_link(children, opts)
+  end
+
+  # Request parameter names that must never reach the logs. Phoenix matches
+  # them as substrings: "token" covers auth_token, refresh_token, id_token,
+  # access_token and the reset password token; "password" covers new_password
+  # and old_password.
+  @sensitive_parameters ["password", "token", "otp", "secret"]
+
+  # The auth endpoints receive credentials as parameters, so they are added to
+  # the application's own :filter_parameters. A {:keep, list} allow-list is
+  # left alone, since it already hides everything it does not name.
+  defp filter_sensitive_parameters() do
+    case Application.get_env(:phoenix, :filter_parameters, ["password"]) do
+      params when is_list(params) ->
+        Application.put_env(
+          :phoenix,
+          :filter_parameters,
+          Enum.uniq(params ++ @sensitive_parameters)
+        )
+
+      _keep ->
+        :ok
+    end
   end
 
   # Tell Phoenix to update the endpoint configuration
