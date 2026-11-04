@@ -167,30 +167,9 @@ defmodule ArkeServer.AuthController do
          project,
          "otp_mail"
        ) do
-    QueryManager.get_by(
-      project: project,
-      arke: "otp",
-      id: Otp.parse_otp_id("signup", username),
-      action: "signup"
-    )
-    |> case do
-      nil ->
-        ResponseManager.send_resp(conn, 401, nil, "Unauthorized")
-
-      otp_unit ->
-        case otp_unit.data.code == otp do
-          true ->
-            case NaiveDateTime.compare(otp_unit.data.expiry_datetime, NaiveDateTime.utc_now()) do
-              :lt ->
-                ResponseManager.send_resp(conn, 410, nil, "Gone")
-
-              :gt ->
-                handle_signup(conn, arke, params, project, otp_unit)
-            end
-
-          false ->
-            ResponseManager.send_resp(conn, 401, nil, nil)
-        end
+    case OtpManager.verify_code(project, username, "signup", otp) do
+      {:ok, _otp} -> handle_signup(conn, arke, params, project)
+      error -> send_otp_error(conn, error)
     end
   end
 
@@ -199,19 +178,13 @@ defmodule ArkeServer.AuthController do
 
   defp handle_signup_mode(conn, _, _, _project, _), do: auth_not_active(conn)
 
-  defp handle_signup(
-         conn,
-         arke,
-         req_params,
-         project,
-         otp_unit \\ nil
-       ) do
+  defp handle_signup(conn, arke, req_params, project) do
     {_, params} = Map.pop(req_params, "otp")
 
     with {:ok, params, arke_system_user} <-
            check_user_on_signup(params, Map.get(params, "arke_system_user", nil)),
          params = Map.put(params, "last_access_time", NaiveDateTime.utc_now()),
-         {:ok, _member} <- create_member_consuming_otp(project, arke, params, otp_unit) do
+         {:ok, _member} <- QueryManager.create(project, arke, data_as_klist(params)) do
       username = Map.get(arke_system_user, "username", nil)
       password = Map.get(arke_system_user, "password", nil)
 
@@ -233,16 +206,6 @@ defmodule ArkeServer.AuthController do
     else
       {:error, errors} -> ResponseManager.send_resp(conn, 400, errors)
     end
-  end
-
-  defp create_member_consuming_otp(project, arke, params, nil),
-    do: QueryManager.create(project, arke, data_as_klist(params))
-
-  defp create_member_consuming_otp(project, arke, params, otp_unit) do
-    QueryManager.transaction(project, fn ->
-      with {:ok, nil} <- QueryManager.delete(project, otp_unit),
-           do: QueryManager.create(project, arke, data_as_klist(params))
-    end)
   end
 
   defp check_user_on_signup(_params, arke_system_user)
@@ -466,29 +429,9 @@ defmodule ArkeServer.AuthController do
             {:error, _} -> ResponseManager.send_resp(conn, 401, nil, "Unauthorized")
           end
         else
-          OtpManager.get_code(project, member, "signin")
-          |> case do
-            nil ->
-              ResponseManager.send_resp(conn, 401, nil, "Unauthorized")
-
-            otp_unit ->
-              case otp_unit.data.code == otp do
-                true ->
-                  case NaiveDateTime.compare(
-                         otp_unit.data.expiry_datetime,
-                         NaiveDateTime.utc_now()
-                       ) do
-                    :lt ->
-                      ResponseManager.send_resp(conn, 410, nil, "Gone")
-
-                    :gt ->
-                      OtpManager.delete_otp(otp_unit)
-                      handle_signin(conn, username, password, project)
-                  end
-
-                false ->
-                  ResponseManager.send_resp(conn, 401, nil, nil)
-              end
+          case OtpManager.verify_code(project, member, "signin", otp) do
+            {:ok, _otp} -> handle_signin(conn, username, password, project)
+            error -> send_otp_error(conn, error)
           end
         end
 
@@ -782,44 +725,20 @@ defmodule ArkeServer.AuthController do
          %{metadata: %{project: project}} = member,
          "otp_mail"
        ) do
-    QueryManager.get_by(
-      project: project,
-      arke: "otp",
-      id: Otp.parse_otp_id("reset_password", member.id),
-      action: "reset_password"
-    )
-    |> case do
-      nil ->
-        ResponseManager.send_resp(conn, 401, nil, "Unauthorized")
+    with {:ok, _otp} <- OtpManager.verify_code(project, member, "reset_password", otp) do
+      user =
+        QueryManager.get_by(
+          id: member.data.arke_system_user,
+          arke_id: :user,
+          project: :arke_system
+        )
 
-      otp_unit ->
-        case otp_unit.data.code == otp do
-          true ->
-            case NaiveDateTime.compare(otp_unit.data.expiry_datetime, NaiveDateTime.utc_now()) do
-              :lt ->
-                ResponseManager.send_resp(conn, 410, nil, "Gone")
-
-              :gt ->
-                user =
-                  QueryManager.get_by(
-                    id: member.data.arke_system_user,
-                    arke_id: :user,
-                    project: :arke_system
-                  )
-
-                QueryManager.transaction(project, fn ->
-                  with {:ok, nil} <- QueryManager.delete(project, otp_unit),
-                       do: User.update_password(user, new_password)
-                end)
-                |> case do
-                  {:ok, _} -> ResponseManager.send_resp(conn, 200, nil, nil)
-                  {:error, msg} -> ResponseManager.send_resp(conn, 400, nil, msg)
-                end
-            end
-
-          false ->
-            ResponseManager.send_resp(conn, 401, nil, nil)
-        end
+      case User.update_password(user, new_password) do
+        {:ok, _} -> ResponseManager.send_resp(conn, 200, nil, nil)
+        {:error, msg} -> ResponseManager.send_resp(conn, 400, nil, msg)
+      end
+    else
+      error -> send_otp_error(conn, error)
     end
   end
 
@@ -836,6 +755,14 @@ defmodule ArkeServer.AuthController do
   end
 
   defp check_token_expiration(_token), do: Error.create(:auth, "invalid token")
+
+  defp send_otp_error(conn, {:error, [%{message: "otp expired"}]} = error),
+    do: send_error(conn, 410, error)
+
+  defp send_otp_error(conn, {:error, [%{message: "too many attempts"}]} = error),
+    do: send_error(conn, 429, error)
+
+  defp send_otp_error(conn, error), do: send_error(conn, 401, error)
 
   defp send_error(conn, status, {:error, msg}),
     do: ResponseManager.send_resp(conn, status, nil, msg)
