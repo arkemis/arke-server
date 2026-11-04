@@ -36,15 +36,49 @@ defmodule ArkeServer.AuthController do
     Enum.map(data, fn {key, value} -> {String.to_existing_atom(key), value} end)
   end
 
+  # App store reviewers sign in with a fixed code instead of a mailed OTP. The
+  # path is enabled only when both APP_REVIEW_EMAIL and APP_REVIEW_CODE are
+  # set: with no code configured, reviewer accounts get a real OTP.
+  defp reviewer?(username) do
+    not is_nil(get_review_code()) and username in get_review_email()
+  end
+
   defp get_review_email() do
     case System.get_env("APP_REVIEW_EMAIL") do
       nil -> []
-      data -> String.split(data, ",") |> Enum.map(&String.trim(&1))
+      data -> String.split(data, ",") |> Enum.map(&String.trim(&1)) |> Enum.reject(&(&1 == ""))
     end
   end
 
   defp get_review_code() do
-    System.get_env("APP_REVIEW_CODE", "1234")
+    case System.get_env("APP_REVIEW_CODE") do
+      nil -> nil
+      "" -> nil
+      code -> code
+    end
+  end
+
+  @review_code_max_attempts 5
+  @review_code_window 900
+
+  # The review code never changes, so wrong guesses are throttled per username.
+  defp check_review_code(username, otp) do
+    key = {:app_review_code, username}
+
+    cond do
+      ArkeAuth.Boundary.AttemptLimiter.count(key) >= @review_code_max_attempts ->
+        Error.create(:auth, "too many attempts")
+
+      Plug.Crypto.secure_compare(to_string(otp), get_review_code()) ->
+        :ok
+
+      ArkeAuth.Boundary.AttemptLimiter.hit(key, @review_code_window) >=
+          @review_code_max_attempts ->
+        Error.create(:auth, "too many attempts")
+
+      true ->
+        Error.create(:auth, "invalid otp")
+    end
   end
 
   @doc """
@@ -378,11 +412,8 @@ defmodule ArkeServer.AuthController do
           inactive: Map.get(member.data, :inactive, false)
         }
 
-        reviewer = get_review_email()
-
-        if username in reviewer do
-          review_code = get_review_code()
-          mailer_module().signin(conn, member, mode: "otp", code: review_code)
+        if reviewer?(username) do
+          mailer_module().signin(conn, member, mode: "otp", code: get_review_code())
           ResponseManager.send_resp(conn, 200, data, "OTP send successfully")
         else
           case Otp.generate(project, member.id, "signin") do
@@ -434,13 +465,11 @@ defmodule ArkeServer.AuthController do
     Auth.validate_credentials(username, password, project)
     |> case do
       {:ok, member, _access_token, _refresh_token} ->
-        reviewer = get_review_email()
-
-        if username in reviewer do
-          if otp == get_review_code() do
-            handle_signin(conn, username, password, project)
-          else
-            ResponseManager.send_resp(conn, 401, nil, "Unauthorized")
+        if reviewer?(username) do
+          case check_review_code(username, otp) do
+            :ok -> handle_signin(conn, username, password, project)
+            {:error, [%{message: "too many attempts"}]} = e -> send_error(conn, 429, e)
+            {:error, _} -> ResponseManager.send_resp(conn, 401, nil, "Unauthorized")
           end
         else
           OtpManager.get_code(project, member, "signin")
@@ -837,6 +866,9 @@ defmodule ArkeServer.AuthController do
   end
 
   defp check_token_expiration(_token), do: Error.create(:auth, "invalid token")
+
+  defp send_error(conn, status, {:error, msg}),
+    do: ResponseManager.send_resp(conn, status, nil, msg)
 
   defp auth_not_active(conn) do
     {:error, msg} = Error.create(:auth, "auth method not active")
