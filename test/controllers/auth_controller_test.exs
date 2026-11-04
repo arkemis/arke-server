@@ -255,6 +255,25 @@ defmodule ArkeServer.AuthControllerTest do
       assert List.first(body["content"])["message"] == "member not found"
     end
 
+    test "signs only the member's public fields into the token", %{conn: conn} do
+      user = get_user("user_authtoken_claims")
+      member = get_member(user)
+
+      {:ok, token} =
+        ArkeAuth.Core.TemporaryToken.generate_auth_token(:test_schema, member, 1, true, [])
+
+      body = post(conn, "/lib/auth/signin", auth_token: to_string(token.id)) |> json_response(200)
+      {:ok, claims} = Guardian.decode_and_verify(body["content"]["access_token"])
+
+      assert claims["sub"]["id"] == to_string(member.id)
+      assert claims["sub"]["project"] == "test_schema"
+
+      assert Map.keys(claims["sub"]) --
+               ~w(id project email first_name last_name subscription_active) == []
+
+      delete_user("user_authtoken_claims")
+    end
+
     test "answers 401 for an expired auth_token", %{conn: conn} do
       user = get_user("user_authtoken_expired")
       member = get_member(user)
