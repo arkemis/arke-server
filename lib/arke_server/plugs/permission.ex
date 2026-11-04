@@ -60,7 +60,7 @@ defmodule ArkeServer.Plugs.Permission do
 
     with {:ok, data} <- Permission.get_public_permission(arke_id, project),
          true <- is_permitted?(data, action) do
-      assign(conn, :permission_filter, get_permission_filter(conn, data))
+      assign_permission_filter(conn, data, nil)
     else
       _ ->
         auth_conn = get_auth_conn(conn)
@@ -73,14 +73,10 @@ defmodule ArkeServer.Plugs.Permission do
                  project
                ),
              true <- is_permitted?(data, action) do
-          assign(
+          assign_permission_filter(
             auth_conn,
-            :permission_filter,
-            get_permission_filter(
-              auth_conn,
-              data,
-              ArkeAuth.Guardian.get_member(auth_conn, impersonate: true)
-            )
+            data,
+            ArkeAuth.Guardian.get_member(auth_conn, impersonate: true)
           )
         else
           %Plug.Conn{halted: true} = auth_conn ->
@@ -125,14 +121,26 @@ defmodule ArkeServer.Plugs.Permission do
   defp is_permitted?(permission, action), do: Map.get(permission, action, false)
 
   defp parse_method(method), do: String.downcase(method) |> String.to_atom()
-  defp get_permission_filter(conn, %{filter: nil} = permission), do: permission
 
-  defp get_permission_filter(conn, permission, member \\ nil) do
+  # A nil filter on the permission means it grants every row. A filter that
+  # cannot be parsed must not be read the same way: the request is refused.
+  defp assign_permission_filter(conn, permission, member) do
+    case get_permission_filter(conn, permission, member) do
+      {:ok, permission} -> assign(conn, :permission_filter, permission)
+      :error -> halt_conn(conn, "forbidden", 403)
+    end
+  end
+
+  defp get_permission_filter(_conn, %{filter: filter} = permission, _member)
+       when filter in [nil, ""],
+       do: {:ok, Map.put(permission, :filter, nil)}
+
+  defp get_permission_filter(conn, permission, member) do
     filter = get_member_filter(permission.filter, member)
 
     case QueryFilters.get_from_string(conn, filter) do
-      {:ok, data} -> Map.put(permission, :filter, data)
-      {:error, _msg} -> Map.put(permission, :filter, nil)
+      {:ok, data} -> {:ok, Map.put(permission, :filter, data)}
+      {:error, _msg} -> :error
     end
   end
 

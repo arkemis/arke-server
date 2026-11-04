@@ -1,5 +1,9 @@
 ExUnit.start()
 
+Mimic.copy(HTTPoison)
+Mimic.copy(Arke.Utils.DatetimeHandler)
+Mimic.copy(ArkeAuth.Utils.Permission)
+
 ArkeServer.Support.CreateArke.support_parameter()
 
 create_support_arke = fn ->
