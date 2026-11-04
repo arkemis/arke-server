@@ -97,12 +97,22 @@ defmodule ArkeServer.Plugs.Permission do
     end
   end
 
+  # Without enable_impersonate the permissions are those of the bearer token,
+  # which only AuthPipeline binds to the requested project, so the
+  # impersonate-token header is then ignored.
   defp get_auth_conn(conn) do
-    case get_impersonate_header(conn) do
-      {:ok, []} -> ArkeServer.Plugs.AuthPipeline.call(conn, [])
-      {:ok, [""]} -> ArkeServer.Plugs.AuthPipeline.call(conn, [])
-      {:ok, _header} -> ArkeServer.Plugs.ImpersonateAuthPipeline.call(conn, [])
+    case {impersonate_enabled?(), get_impersonate_header(conn)} do
+      {true, {:ok, [header | _]}} when header != "" ->
+        ArkeServer.Plugs.ImpersonateAuthPipeline.call(conn, [])
+
+      _ ->
+        ArkeServer.Plugs.AuthPipeline.call(conn, [])
     end
+  end
+
+  defp impersonate_enabled?() do
+    Application.get_env(:arke_auth, ArkeAuth.Guardian, [])
+    |> Keyword.get(:enable_impersonate, false)
   end
 
   defp halt_conn(conn, message, status) do

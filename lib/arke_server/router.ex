@@ -140,7 +140,7 @@ defmodule ArkeServer.Router do
     end
 
     scope "/arke_dev_function" do
-      pipe_through([:tmp_auth_pipe])
+      pipe_through([:project, :tmp_auth_pipe])
       get("/export_arke_db_stucture", ArkeDevFunctionController, :export_arke_db_stucture)
     end
 

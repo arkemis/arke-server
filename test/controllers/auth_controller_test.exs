@@ -109,6 +109,41 @@ defmodule ArkeServer.AuthControllerTest do
     end
   end
 
+  describe "token project (ARKE-SRV-01)" do
+    setup [:create_user_setup]
+
+    test "a token is rejected for another project than its own" do
+      user = Arke.QueryManager.get_by(project: :arke_system, username: "user2")
+
+      body =
+        build_authenticated_conn(user)
+        |> Plug.Conn.put_req_header("arke-project-key", "arke_system")
+        |> post("/lib/auth/verify")
+        |> json_response(401)
+
+      assert List.first(body["messages"])["message"] == "invalid_project"
+    end
+
+    test "a project member cannot manage projects" do
+      user = Arke.QueryManager.get_by(project: :arke_system, username: "user2")
+
+      build_authenticated_conn(user)
+      |> get("/lib/arke_project/unit")
+      |> json_response(401)
+    end
+
+    test "the impersonate-token header is ignored while impersonation is off" do
+      user = Arke.QueryManager.get_by(project: :arke_system, username: "user2")
+      {:ok, token, _} = Guardian.encode_and_sign(get_member(user))
+
+      build_system_conn(user)
+      |> Plug.Conn.put_req_header("arke-project-key", "test_schema")
+      |> Plug.Conn.put_req_header("impersonate-token", "Bearer #{token}")
+      |> post("/lib/auth/verify")
+      |> json_response(401)
+    end
+  end
+
   describe "POST /lib/auth/verify" do
     setup [:create_user_setup]
 
