@@ -243,12 +243,18 @@ defmodule ArkeServer.OAuthController do
   end
 
   defp create_member(project, user, params, member_id) do
-    member_model = ArkeManager.get(String.to_atom(member_id), project)
+    member_model = ArkeManager.get(member_id, project)
 
     member_data =
       Map.put(params, "arke_system_user", to_string(user.id)) |> Map.put("email", user.data.email)
 
-    new_data = for {key, val} <- member_data, into: %{}, do: {String.to_atom(key), val}
+    new_data =
+      for {key, val} <- member_data,
+          atom = ArkeServer.Utils.ExistingAtom.get(key),
+          not is_nil(atom),
+          into: %{},
+          do: {atom, val}
+
     QueryManager.create(project, member_model, new_data)
   end
 
