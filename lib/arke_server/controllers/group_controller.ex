@@ -42,7 +42,7 @@ defmodule ArkeServer.GroupController do
       GroupManager.get(group_id, project)
       |> Arke.Core.Unit.update(runtime_data: %{conn: conn})
 
-    case GroupManager.call_func(group, String.to_atom(function_name), [group]) do
+    case call_func(group, function_name, [group]) do
       {:file, file, filename} ->
         send_download(conn, {:binary, file}, filename: filename)
 
@@ -149,5 +149,14 @@ defmodule ArkeServer.GroupController do
       |> QueryManager.one()
 
     ResponseManager.send_resp(conn, 200, %{content: StructManager.encode(unit, type: :json)})
+  end
+
+  # A function name that is not an existing atom names no function, and
+  # must not create one.
+  defp call_func(unit, function_name, args) do
+    case ArkeServer.Utils.ExistingAtom.get(function_name) do
+      nil -> {:error, "Undefined function"}
+      func -> GroupManager.call_func(unit, func, args)
+    end
   end
 end

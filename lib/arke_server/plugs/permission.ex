@@ -118,9 +118,16 @@ defmodule ArkeServer.Plugs.Permission do
     |> Plug.Conn.halt()
   end
 
+  defp is_permitted?(_permission, nil), do: false
   defp is_permitted?(permission, action), do: Map.get(permission, action, false)
 
-  defp parse_method(method), do: String.downcase(method) |> String.to_atom()
+  # Any method string reaches the plug; only these map to a permission.
+  defp parse_method("GET"), do: :get
+  defp parse_method("POST"), do: :post
+  defp parse_method("PUT"), do: :put
+  defp parse_method("PATCH"), do: :put
+  defp parse_method("DELETE"), do: :delete
+  defp parse_method(_method), do: nil
 
   # A nil filter on the permission means it grants every row. A filter that
   # cannot be parsed must not be read the same way: the request is refused.
