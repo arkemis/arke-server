@@ -75,9 +75,14 @@ defmodule ArkeServer.Router do
     plug(OpenApiSpex.Plug.PutApiSpec, module: ArkeServer.ApiSpec)
   end
 
+  pipeline :api_docs do
+    plug(ArkeServer.Plugs.ApiDocsAuth)
+  end
+
   # ------ OPENAPI -------
 
   scope "/lib/doc" do
+    pipe_through([:api_docs])
     get("/swaggerui", OpenApiSpex.Plug.SwaggerUI, path: "/lib/doc/openapi")
 
     pipe_through([:openapi])
