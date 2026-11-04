@@ -573,21 +573,25 @@ defmodule ArkeServer.AuthController do
   Reset user password
   """
 
+  @recover_password_sent "An email has been sent to the given email"
+
   def recover_password(conn, %{"email" => email} = params) do
     project = get_project(conn.assigns[:arke_project])
     auth_mode = System.get_env("AUTH_MODE", "default")
 
-    case QueryManager.get_by(project: project, group_id: :arke_auth_member, email: email) do
-      nil ->
-        {:error, msg} = Error.create(:auth, "member not found with given email")
-        ResponseManager.send_resp(conn, 404, msg)
-
-      member ->
-        handle_recover_password_mode(conn, params, member, auth_mode)
-    end
+    member = QueryManager.get_by(project: project, group_id: :arke_auth_member, email: email)
+    handle_recover_password_mode(conn, params, member, auth_mode)
   end
 
   def recover_password(conn, _), do: ResponseManager.send_resp(conn, 400, nil)
+
+  # An unknown email gets the same answer as a known one, so the endpoint
+  # does not tell who has an account.
+  defp handle_recover_password_mode(conn, %{"email" => _}, nil, "default"),
+    do: ResponseManager.send_resp(conn, 200, @recover_password_sent)
+
+  defp handle_recover_password_mode(conn, %{"email" => _, "otp" => nil}, nil, "otp_mail"),
+    do: ResponseManager.send_resp(conn, 200, %{content: "OTP send successfully"})
 
   defp handle_recover_password_mode(
          conn,
@@ -652,7 +656,7 @@ defmodule ArkeServer.AuthController do
   defp handle_recover_password_mode(conn, _, _, _), do: auth_not_active(conn)
 
   defp handle_recover_password(conn, email, "default") do
-    default_msg = "An email has been sent to the given email"
+    default_msg = @recover_password_sent
 
     case QueryManager.get_by(email: email, arke_id: :user, project: :arke_system) do
       nil ->
@@ -754,6 +758,18 @@ defmodule ArkeServer.AuthController do
       error -> send_otp_error(conn, error)
     end
   end
+
+  # No member carries the email: answer as for a wrong code.
+  defp handle_reset_password_mode(conn, %{"new_password" => _, "otp" => _}, nil, "otp_mail"),
+    do: send_otp_error(conn, Error.create(:auth, "invalid otp"))
+
+  defp handle_reset_password_mode(conn, _, _, "default"),
+    do: params_required(conn, ["token", "new_password"])
+
+  defp handle_reset_password_mode(conn, _, _, "otp_mail"),
+    do: params_required(conn, ["email", "otp", "new_password"])
+
+  defp handle_reset_password_mode(conn, _, _, _), do: auth_not_active(conn)
 
   defp get_project(project) when is_nil(project), do: :arke_system
   defp get_project(project), do: project
