@@ -255,6 +255,35 @@ defmodule ArkeServer.AuthControllerTest do
       assert List.first(body["content"])["message"] == "member not found"
     end
 
+    test "answers 401 for an expired auth_token", %{conn: conn} do
+      user = get_user("user_authtoken_expired")
+      member = get_member(user)
+
+      {:ok, token} =
+        ArkeAuth.Core.TemporaryToken.generate_auth_token(:test_schema, member, 1, true, [])
+
+      {:ok, _} =
+        QueryManager.update(token,
+          expiration_datetime: NaiveDateTime.utc_now() |> NaiveDateTime.add(-1, :second)
+        )
+
+      post(conn, "/lib/auth/signin", auth_token: to_string(token.id)) |> json_response(401)
+      delete_user("user_authtoken_expired")
+    end
+
+    test "answers 401 for an auth_token without an expiry", %{conn: conn} do
+      user = get_user("user_authtoken_noexpiry")
+      member = get_member(user)
+
+      {:ok, token} =
+        ArkeAuth.Core.TemporaryToken.generate_auth_token(:test_schema, member, 1, true, [])
+
+      {:ok, _} = QueryManager.update(token, expiration_datetime: nil)
+
+      post(conn, "/lib/auth/signin", auth_token: to_string(token.id)) |> json_response(401)
+      delete_user("user_authtoken_noexpiry")
+    end
+
     test "answers 401 for an unknown auth_token", %{conn: conn} do
       post(conn, "/lib/auth/signin", auth_token: "no_such_token") |> json_response(401)
     end
@@ -300,6 +329,25 @@ defmodule ArkeServer.AuthControllerTest do
       post(conn, "/lib/auth/recover_password", email: "nobody@arke.test")
       |> json_response(404)
     end
+  end
+
+  test "credentials are filtered out of the request logs (ARKE-AUTH-06)" do
+    filtered =
+      Phoenix.Logger.filter_values(%{
+        "auth_token" => "a",
+        "refresh_token" => "b",
+        "otp" => "c",
+        "new_password" => "d",
+        "username" => "e"
+      })
+
+    assert filtered == %{
+             "auth_token" => "[FILTERED]",
+             "refresh_token" => "[FILTERED]",
+             "otp" => "[FILTERED]",
+             "new_password" => "[FILTERED]",
+             "username" => "e"
+           }
   end
 
   describe "auth error handler" do
