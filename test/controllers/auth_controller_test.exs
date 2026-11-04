@@ -72,6 +72,43 @@ defmodule ArkeServer.AuthControllerTest do
     delete_user("user2")
   end
 
+  describe "token types (ARKE-AUTH-04)" do
+    setup [:create_user_setup]
+
+    defp tokens(conn) do
+      post(conn, "/lib/auth/signin", username: "user2", password: "password")
+      |> json_response(200)
+      |> Map.fetch!("content")
+    end
+
+    test "a refresh token is not a bearer token", %{conn: conn} do
+      %{"refresh_token" => refresh_token} = tokens(conn)
+
+      build_conn()
+      |> Plug.Conn.put_req_header("arke-project-key", "test_schema")
+      |> Plug.Conn.put_req_header("authorization", "Bearer #{refresh_token}")
+      |> post("/lib/auth/verify")
+      |> json_response(401)
+    end
+
+    test "refresh needs no authorization header", %{conn: conn} do
+      %{"refresh_token" => refresh_token} = tokens(conn)
+
+      body = post(conn, "/lib/auth/refresh", refresh_token: refresh_token) |> json_response(200)
+      assert body["content"]["access_token"]
+    end
+
+    test "an access token cannot be exchanged for new tokens", %{conn: conn} do
+      %{"access_token" => access_token} = tokens(conn)
+
+      build_conn()
+      |> Plug.Conn.put_req_header("arke-project-key", "test_schema")
+      |> Plug.Conn.put_req_header("authorization", "Bearer #{access_token}")
+      |> post("/lib/auth/refresh", refresh_token: access_token)
+      |> json_response(400)
+    end
+  end
+
   describe "POST /lib/auth/verify" do
     setup [:create_user_setup]
 

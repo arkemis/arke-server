@@ -25,7 +25,7 @@ defmodule ArkeServer.Plugs.AuthPipeline do
     module: ArkeAuth.Guardian,
     error_handler: ArkeServer.ErrorHandlers.Auth
 
-  plug(Guardian.Plug.VerifyHeader, scheme: "Bearer")
+  plug(Guardian.Plug.VerifyHeader, scheme: "Bearer", claims: %{"typ" => "access"})
   plug(Guardian.Plug.EnsureAuthenticated)
   plug(Guardian.Plug.LoadResource)
 end
@@ -40,14 +40,15 @@ defmodule ArkeServer.Plugs.ImpersonateAuthPipeline do
     module: ArkeAuth.Guardian,
     error_handler: ArkeServer.ErrorHandlers.Auth
 
-  plug(Guardian.Plug.VerifyHeader, scheme: "Bearer")
+  plug(Guardian.Plug.VerifyHeader, scheme: "Bearer", claims: %{"typ" => "access"})
   plug(Guardian.Plug.EnsureAuthenticated)
   plug(Guardian.Plug.LoadResource)
 
   plug(Guardian.Plug.VerifyHeader,
     scheme: "Bearer",
     header_name: "impersonate-token",
-    key: "impersonate"
+    key: "impersonate",
+    claims: %{"typ" => "access"}
   )
 
   plug(Guardian.Plug.EnsureAuthenticated, key: :impersonate)
@@ -79,7 +80,7 @@ defmodule ArkeServer.Plugs.SSOAuthPipeline do
     module: ArkeAuth.SSOGuardian,
     error_handler: ArkeServer.ErrorHandlers.SSOAuth
 
-  plug(Guardian.Plug.VerifyHeader, scheme: "Bearer")
+  plug(Guardian.Plug.VerifyHeader, scheme: "Bearer", claims: %{"typ" => "access"})
   plug(Guardian.Plug.EnsureAuthenticated)
   plug(Guardian.Plug.LoadResource)
 end
