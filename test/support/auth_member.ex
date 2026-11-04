@@ -2,7 +2,8 @@ defmodule ArkeServer.Support.AuthMember do
   @moduledoc """
   A member arke in `test_schema` that is not `super_admin`, with an `email`,
   for the auth flows that look members up by email or treat admins apart.
-  It is in the `arke_auth_member` and `self_signup` groups.
+  It is in the `arke_auth_member` group, and config/test.exs opens it to
+  sign-up.
 
   `setup!/0` runs once from test_helper.exs, outside the SQL sandbox: the
   arke managers keep units in memory across tests, so the rows they point at
@@ -36,8 +37,7 @@ defmodule ArkeServer.Support.AuthMember do
     for parameter <- ["arke_system_user", "email", "inactive"],
         do: {:ok, _} = LinkManager.add_node(@project, to_string(@arke_id), parameter, "parameter")
 
-    for group <- ["arke_auth_member", "self_signup"],
-        do: {:ok, _} = LinkManager.add_node(@project, group, to_string(@arke_id), "group")
+    {:ok, _} = LinkManager.add_node(@project, "arke_auth_member", to_string(@arke_id), "group")
 
     :ok
   end
