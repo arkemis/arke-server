@@ -22,14 +22,65 @@ defmodule ArkeServer.AuthControllerTest do
     end
   end
 
-  test "POST /lib/auth/signup", %{conn: conn} do
-    conn =
-      post(conn, "/lib/auth/signup", username: "user3", password: "password", type: "customer")
+  describe "POST /lib/auth/:arke_id/signup (ARKE-AUTH-01)" do
+    alias ArkeServer.Support.AuthMember
 
-    body_resp = json_response(conn, 201)
-    assert body_resp["content"]["username"] == "user3"
+    defp signup(conn, arke_id, username) do
+      post(conn, "/lib/auth/#{arke_id}/signup", %{
+        "email" => "#{username}@arke.test",
+        "arke_system_user" => %{
+          "username" => username,
+          "password" => "password",
+          "email" => "#{username}@arke.test"
+        }
+      })
+    end
 
-    delete_user("user2")
+    test "signs up as a member arke in the self_signup group", %{conn: conn} do
+      AuthMember.ensure_arke(["arke_auth_member", "self_signup"])
+
+      body_resp = signup(conn, AuthMember.arke_id(), "user3") |> json_response(200)
+
+      assert body_resp["content"]["arke_id"] == to_string(AuthMember.arke_id())
+      assert is_binary(body_resp["content"]["access_token"])
+      assert is_binary(body_resp["content"]["refresh_token"])
+
+      user =
+        QueryManager.get_by(
+          project: :arke_system,
+          arke_id: :user,
+          id: body_resp["content"]["arke_system_user"]
+        )
+
+      assert user.data.username == "user3"
+
+      delete_user("user3")
+    end
+
+    test "refuses super_admin", %{conn: conn} do
+      body = signup(conn, "super_admin", "would_be_admin") |> json_response(403)
+
+      assert List.first(body["messages"])["message"] == "signup not allowed"
+      assert QueryManager.get_by(project: :arke_system, username: "would_be_admin") == nil
+    end
+
+    test "refuses a member arke outside self_signup", %{conn: conn} do
+      refute ArkeServer.Utils.MemberArke.self_signup?("member_public", :test_schema)
+
+      signup(conn, "member_public", "not_open") |> json_response(403)
+    end
+
+    test "refuses an unknown arke", %{conn: conn} do
+      signup(conn, "no_such_member_arke", "nobody") |> json_response(403)
+    end
+
+    test "super_admin stays refused in a project that lists it" do
+      Arke.LinkManager.add_node(:test_schema, "self_signup", "super_admin", "group")
+      Arke.LinkManager.add_node(:test_schema, "enable_sso", "super_admin", "group")
+
+      refute ArkeServer.Utils.MemberArke.self_signup?("super_admin", :test_schema)
+      refute ArkeServer.Utils.MemberArke.sso_signup?("super_admin", :test_schema)
+    end
   end
 
   test "POST /lib/auth/refresh", %{conn: conn} do

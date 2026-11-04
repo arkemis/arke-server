@@ -83,14 +83,11 @@ defmodule ArkeServer.OAuthController do
     user = QueryManager.get_by(project: :arke_system, arke_id: :user, id: user_resource.id)
     project = conn.assigns[:arke_project]
     provider_arke_id = String.to_existing_atom("oauth_#{provider}")
-    enable_sso_group = GroupManager.get(:enable_sso, project)
     # check if the given member_id is enable to sso login
     # check if the user has any oauth link
     # check if one of the oauth link has the arke_id equal to the given provider
     # there are no units associated with that provider or the provider does not exist
-    with true <-
-           member_id in (GroupManager.get_arke_list(enable_sso_group)
-                         |> Enum.map(fn ak -> to_string(ak.id) end)),
+    with true <- ArkeServer.Utils.MemberArke.sso_signup?(member_id, project),
          [_data] = link_list <- get_link(user, :child),
          %Unit{} = _unit <-
            Enum.find(link_list, fn link_unit -> link_unit.arke_id == provider_arke_id end) do
