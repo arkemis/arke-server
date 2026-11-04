@@ -16,9 +16,14 @@ defmodule ArkeServer.Utils.MemberArke do
   @moduledoc """
   Which member arkes a client may create a member of without an admin.
 
-  A member arke is open to sign-up only if it is in the `self_signup` group,
-  and to creation from an SSO login only if it is in `enable_sso`. It must
-  also be an `arke_auth_member`. `super_admin` is always refused, so a project
+  A member arke is open to sign-up only if it is listed in
+
+      config :arke_server, :self_signup_arkes, [:customer]
+
+  (the same list for every project; empty by default, which closes sign-up),
+  and to creation from an SSO login only if it is in the project's
+  `enable_sso` group. Either way it must also be an `arke_auth_member` of the
+  project. `super_admin` is always refused, even when listed, so a project
   seeded before arke_auth emptied `enable_sso` stays safe.
   """
   alias Arke.Boundary.GroupManager
@@ -45,13 +50,15 @@ defmodule ArkeServer.Utils.MemberArke do
 
   @doc "Whether anyone may sign up as a member of `arke_id` in `project`."
   @spec self_signup?(atom() | String.t() | nil, atom()) :: boolean()
-  def self_signup?(arke_id, project), do: allowed?(arke_id, :self_signup, project)
+  def self_signup?(arke_id, project),
+    do: allowed?(arke_id, project, &(to_string(&1) in self_signup_arkes()))
 
   @doc "Whether an SSO login may create a member of `arke_id` in `project`."
   @spec sso_signup?(atom() | String.t() | nil, atom()) :: boolean()
-  def sso_signup?(arke_id, project), do: allowed?(arke_id, :enable_sso, project)
+  def sso_signup?(arke_id, project),
+    do: allowed?(arke_id, project, &in_group?(&1, :enable_sso, project))
 
-  defp allowed?(arke_id, group, project) do
+  defp allowed?(arke_id, project, listed?) do
     case ArkeServer.Utils.ExistingAtom.get(arke_id) do
       nil ->
         false
@@ -60,9 +67,12 @@ defmodule ArkeServer.Utils.MemberArke do
         false
 
       id ->
-        in_group?(id, group, project) and in_group?(id, :arke_auth_member, project)
+        listed?.(id) and in_group?(id, :arke_auth_member, project)
     end
   end
+
+  defp self_signup_arkes(),
+    do: Enum.map(Application.get_env(:arke_server, :self_signup_arkes, []), &to_string/1)
 
   defp in_group?(arke_id, group_id, project) do
     case GroupManager.get(group_id, project) do

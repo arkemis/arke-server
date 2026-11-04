@@ -25,6 +25,15 @@ defmodule ArkeServer.AuthControllerTest do
   describe "POST /lib/auth/:arke_id/signup (ARKE-AUTH-01)" do
     alias ArkeServer.Support.AuthMember
 
+    defp put_self_signup_arkes(arkes) do
+      previous = Application.get_env(:arke_server, :self_signup_arkes)
+      on_exit(fn -> Application.put_env(:arke_server, :self_signup_arkes, previous) end)
+
+      if arkes,
+        do: Application.put_env(:arke_server, :self_signup_arkes, arkes),
+        else: Application.delete_env(:arke_server, :self_signup_arkes)
+    end
+
     defp signup(conn, arke_id, username) do
       post(conn, "/lib/auth/#{arke_id}/signup", %{
         "email" => "#{username}@arke.test",
@@ -36,7 +45,7 @@ defmodule ArkeServer.AuthControllerTest do
       })
     end
 
-    test "signs up as a member arke in the self_signup group", %{conn: conn} do
+    test "signs up as a member arke in the self-signup list", %{conn: conn} do
       body_resp = signup(conn, AuthMember.arke_id(), "user3") |> json_response(200)
 
       assert body_resp["content"]["arke_id"] == to_string(AuthMember.arke_id())
@@ -83,7 +92,7 @@ defmodule ArkeServer.AuthControllerTest do
       assert QueryManager.get_by(project: :arke_system, username: "would_be_admin") == nil
     end
 
-    test "refuses a member arke outside self_signup", %{conn: conn} do
+    test "refuses a member arke outside the self-signup list", %{conn: conn} do
       refute ArkeServer.Utils.MemberArke.self_signup?("member_public", :test_schema)
 
       signup(conn, "member_public", "not_open") |> json_response(403)
@@ -93,12 +102,27 @@ defmodule ArkeServer.AuthControllerTest do
       signup(conn, "no_such_member_arke", "nobody") |> json_response(403)
     end
 
-    test "super_admin stays refused in a project that lists it" do
-      Arke.LinkManager.add_node(:test_schema, "self_signup", "super_admin", "group")
+    test "super_admin stays refused when it is listed" do
+      put_self_signup_arkes([:test_auth_member, "super_admin"])
       Arke.LinkManager.add_node(:test_schema, "enable_sso", "super_admin", "group")
 
       refute ArkeServer.Utils.MemberArke.self_signup?("super_admin", :test_schema)
       refute ArkeServer.Utils.MemberArke.sso_signup?("super_admin", :test_schema)
+    end
+
+    test "a listed arke must also be an arke_auth_member of the project", %{conn: conn} do
+      put_self_signup_arkes([:test_auth_member, :member_public, :arke])
+
+      assert ArkeServer.Utils.MemberArke.self_signup?("member_public", :test_schema)
+      refute ArkeServer.Utils.MemberArke.self_signup?("arke", :test_schema)
+      signup(conn, "arke", "not_a_member") |> json_response(403)
+    end
+
+    test "sign-up is closed when nothing is listed", %{conn: conn} do
+      put_self_signup_arkes(nil)
+
+      refute ArkeServer.Utils.MemberArke.self_signup?(AuthMember.arke_id(), :test_schema)
+      signup(conn, AuthMember.arke_id(), "closed") |> json_response(403)
     end
   end
 

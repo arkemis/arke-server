@@ -31,6 +31,8 @@ config :arke_server, ArkeServer.TestMailer, adapter: Swoosh.Adapters.Test
 
 config :arke_server, ecto_repos: [ArkePostgres.Repo]
 
+config :arke_server, :self_signup_arkes, [:test_auth_member]
+
 # The suite signs in many times from one address; the limit has its own tests.
 config :arke_server, ArkeServer.Plugs.AuthRateLimit, enabled: false
 
