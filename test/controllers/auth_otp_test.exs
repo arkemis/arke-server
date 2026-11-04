@@ -87,4 +87,96 @@ defmodule ArkeServer.AuthOtpTest do
       refute conn.resp_body =~ "access_token"
     end
   end
+
+  describe "OTP verification (ARKE-AUTH-08)" do
+    alias ArkeAuth.Core.Otp
+
+    defp wrong(code),
+      do: code |> String.to_integer() |> Kernel.+(1) |> rem(1_000_000) |> to_string()
+
+    test "the signin code verifies once", %{conn: conn} do
+      {_user, member} = AuthMember.create_user("otp_signin")
+      {:ok, otp} = Otp.generate(:test_schema, member.id, "signin")
+
+      assert signin(conn, "otp_signin", otp.data.code) |> json_response(200)
+      assert signin(conn, "otp_signin", otp.data.code).status == 401
+    end
+
+    test "a numeric JSON code is accepted", %{conn: conn} do
+      {_user, member} = AuthMember.create_user("otp_signin_int")
+      {:ok, otp} = Otp.generate(:test_schema, member.id, "signin")
+      {:ok, _} = QueryManager.update(otp, code: "042817")
+
+      assert signin(conn, "otp_signin_int", 42817).status == 200
+    end
+
+    test "the signin code is burnt after five wrong guesses", %{conn: conn} do
+      {_user, member} = AuthMember.create_user("otp_signin_brute")
+      {:ok, otp} = Otp.generate(:test_schema, member.id, "signin")
+
+      for _ <- 1..4,
+          do: assert(signin(conn, "otp_signin_brute", wrong(otp.data.code)).status == 401)
+
+      assert signin(conn, "otp_signin_brute", wrong(otp.data.code)).status == 429
+      assert signin(conn, "otp_signin_brute", otp.data.code).status == 401
+    end
+
+    test "an expired signin code answers 410", %{conn: conn} do
+      {_user, member} = AuthMember.create_user("otp_signin_expired")
+      past = NaiveDateTime.utc_now() |> NaiveDateTime.add(-1, :second)
+      {:ok, otp} = Otp.generate(:test_schema, member.id, "signin", past)
+
+      assert signin(conn, "otp_signin_expired", otp.data.code).status == 410
+    end
+
+    test "the reset password code is checked the same way", %{conn: conn} do
+      {user, member} = AuthMember.create_user("otp_reset")
+      {:ok, otp} = Otp.generate(:test_schema, member.id, "reset_password")
+
+      reset = fn code ->
+        post(conn, "/lib/auth/reset_password", %{
+          email: user.data.email,
+          otp: code,
+          new_password: "changed_password"
+        })
+      end
+
+      for _ <- 1..4, do: assert(reset.(wrong(otp.data.code)).status == 401)
+      assert reset.(wrong(otp.data.code)).status == 429
+      assert reset.(otp.data.code).status == 401
+
+      {:ok, otp} = Otp.generate(:test_schema, member.id, "reset_password")
+      assert reset.(otp.data.code).status == 200
+
+      assert {:ok, _, _, _} =
+               ArkeAuth.Core.Auth.validate_credentials(
+                 "otp_reset",
+                 "changed_password",
+                 :test_schema
+               )
+    end
+
+    test "the signup code is checked the same way", %{conn: conn} do
+      AuthMember.ensure_arke()
+      username = "otp_signup@arke.test"
+      {:ok, otp} = Otp.generate(:test_schema, username, "signup")
+
+      signup = fn code ->
+        post(conn, "/lib/auth/#{AuthMember.arke_id()}/signup", %{
+          otp: code,
+          email: username,
+          first_name: "Otp",
+          last_name: "Signup",
+          arke_system_user: %{username: username, password: "password", email: username}
+        })
+      end
+
+      for _ <- 1..4, do: assert(signup.(wrong(otp.data.code)).status == 401)
+      assert signup.(wrong(otp.data.code)).status == 429
+      assert signup.(otp.data.code).status == 401
+
+      {:ok, otp} = Otp.generate(:test_schema, username, "signup")
+      assert signup.(otp.data.code) |> json_response(200)
+    end
+  end
 end
