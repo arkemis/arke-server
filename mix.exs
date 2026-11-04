@@ -70,7 +70,8 @@ defmodule ArkeServer.MixProject do
       {:arke_postgres, "~> 0.8.0-rc.0"},
       {:arke_auth, "~> 0.7.0-rc.0"},
       {:req, "~> 0.7"},
-      {:swoosh, "~> 1.11"}
+      {:swoosh, "~> 1.11"},
+      {:hammer, "~> 7.5"}
     ])
   end
 

@@ -62,6 +62,10 @@ defmodule ArkeServer.Router do
     plug(ArkeServer.Plugs.AuthPipeline)
   end
 
+  pipeline :auth_rate_limit do
+    plug(ArkeServer.Plugs.AuthRateLimit)
+  end
+
   pipeline :project do
     plug(ArkeServer.Plugs.GetProject)
     plug(ArkeServer.Plugs.BuildFilters)
@@ -101,7 +105,7 @@ defmodule ArkeServer.Router do
     pipe_through([:openapi])
 
     scope "/auth" do
-      pipe_through([:project])
+      pipe_through([:auth_rate_limit, :project])
 
       get("/signin", AuthController, :signin)
       post("/signin", AuthController, :signin)

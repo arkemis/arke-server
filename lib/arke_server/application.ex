@@ -24,6 +24,7 @@ defmodule ArkeServer.Application do
     filter_sensitive_parameters()
 
     children = [
+      {ArkeServer.RateLimit, clean_period: :timer.minutes(1)},
       # Start the Endpoint (http/https)
       ArkeServer.Endpoint
       # Start a worker by calling: ArkeServer.Worker.start_link(arg)

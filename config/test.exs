@@ -31,6 +31,9 @@ config :arke_server, ArkeServer.TestMailer, adapter: Swoosh.Adapters.Test
 
 config :arke_server, ecto_repos: [ArkePostgres.Repo]
 
+# The suite signs in many times from one address; the limit has its own tests.
+config :arke_server, ArkeServer.Plugs.AuthRateLimit, enabled: false
+
 config :arke_postgres, ArkePostgres.Repo,
   username: "postgres",
   password: "postgres",
