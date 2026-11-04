@@ -489,10 +489,9 @@ defmodule ArkeServer.AuthController do
   Refresh the JWT tokens. Returns 200 and the tokes if ok
   """
   def refresh(conn, %{"refresh_token" => refresh_token}) do
-    auth_conn = ArkeServer.Plugs.AuthPipeline.call(conn, [])
-    user = ArkeAuth.Guardian.get_member(auth_conn)
-
-    Auth.refresh_tokens(user, refresh_token)
+    # The member comes from the refresh token itself; no access token is
+    # needed (it may well have expired).
+    Auth.refresh_tokens(refresh_token)
     |> case do
       {:ok, access_token, refresh_token} ->
         ResponseManager.send_resp(conn, 200, %{
