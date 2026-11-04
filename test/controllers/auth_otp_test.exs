@@ -65,4 +65,26 @@ defmodule ArkeServer.AuthOtpTest do
       assert signin(conn, "reviewer_brute", "246810").status == 429
     end
   end
+
+  describe "super_admin and the second factor (ARKE-AUTH-09)" do
+    test "a super_admin password sign-in asks for an OTP", %{conn: conn} do
+      user = get_user("admin_2fa")
+      member = get_member(user)
+      assert member.arke_id == :super_admin
+
+      body = signin(conn, "admin_2fa", nil) |> json_response(200)
+
+      refute body["content"]["access_token"]
+      assert ArkeAuth.Boundary.OtpManager.get_code(:test_schema, member, "signin")
+    end
+
+    test "a super_admin password without the OTP gets no tokens", %{conn: conn} do
+      get_user("admin_2fa_wrong")
+
+      conn = signin(conn, "admin_2fa_wrong", "000000")
+
+      assert conn.status == 401
+      refute conn.resp_body =~ "access_token"
+    end
+  end
 end

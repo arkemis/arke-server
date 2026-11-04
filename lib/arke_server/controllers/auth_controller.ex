@@ -343,14 +343,8 @@ defmodule ArkeServer.AuthController do
 
     Auth.validate_credentials(username, password, project)
     |> case do
-      {:ok, member, _access_token, _refresh_token} ->
-        case member.arke_id do
-          :super_admin ->
-            handle_signin(conn, username, password, project)
-
-          _ ->
-            handle_signin_mode(conn, params, project, auth_mode)
-        end
+      {:ok, _member, _access_token, _refresh_token} ->
+        handle_signin_mode(conn, params, project, auth_mode)
 
       {:error, messages} ->
         ResponseManager.send_resp(conn, 401, messages)
@@ -407,7 +401,7 @@ defmodule ArkeServer.AuthController do
           arke_id: member.arke_id,
           id: member.id,
           arke_system_user: member.data.arke_system_user,
-          email: member.data.email,
+          email: Map.get(member.data, :email),
           phone: hide_phone_number(Map.get(member.data, :phone, nil)),
           inactive: Map.get(member.data, :inactive, false)
         }
@@ -584,17 +578,10 @@ defmodule ArkeServer.AuthController do
   Change user password
   """
 
-  def change_password(conn, %{"old_password" => old_pwd, "password" => new_pwd} = params) do
+  def change_password(conn, %{"old_password" => _, "password" => _} = params) do
     auth_mode = System.get_env("AUTH_MODE", "default")
     member = ArkeAuth.Guardian.get_member(conn)
-
-    case member.arke_id do
-      :super_admin ->
-        handle_change_password(conn, member, old_pwd, new_pwd)
-
-      _ ->
-        handle_change_password_mode(conn, params, member, auth_mode)
-    end
+    handle_change_password_mode(conn, params, member, auth_mode)
   end
 
   def change_password(conn, _), do: ResponseManager.send_resp(conn, 400, nil)
@@ -640,13 +627,7 @@ defmodule ArkeServer.AuthController do
         ResponseManager.send_resp(conn, 404, msg)
 
       member ->
-        case member.arke_id do
-          :super_admin ->
-            handle_recover_password(conn, email, "default")
-
-          _ ->
-            handle_recover_password_mode(conn, params, member, auth_mode)
-        end
+        handle_recover_password_mode(conn, params, member, auth_mode)
     end
   end
 
@@ -757,19 +738,8 @@ defmodule ArkeServer.AuthController do
 
     email = Map.get(params, "email", nil)
 
-    case QueryManager.get_by(project: project, group_id: :arke_auth_member, email: email) do
-      nil ->
-        handle_reset_password_mode(conn, params, nil, auth_mode)
-
-      member ->
-        case member.arke_id do
-          :super_admin ->
-            handle_reset_password_mode(conn, params, member, auth_mode)
-
-          _ ->
-            handle_reset_password_mode(conn, params, member, auth_mode)
-        end
-    end
+    member = QueryManager.get_by(project: project, group_id: :arke_auth_member, email: email)
+    handle_reset_password_mode(conn, params, member, auth_mode)
   end
 
   defp handle_reset_password_mode(
