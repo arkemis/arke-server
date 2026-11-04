@@ -37,8 +37,6 @@ defmodule ArkeServer.AuthControllerTest do
     end
 
     test "signs up as a member arke in the self_signup group", %{conn: conn} do
-      AuthMember.ensure_arke(["arke_auth_member", "self_signup"])
-
       body_resp = signup(conn, AuthMember.arke_id(), "user3") |> json_response(200)
 
       assert body_resp["content"]["arke_id"] == to_string(AuthMember.arke_id())
@@ -58,8 +56,6 @@ defmodule ArkeServer.AuthControllerTest do
     end
 
     test "ignores the fields a client must not set", %{conn: conn} do
-      AuthMember.ensure_arke(["arke_auth_member", "self_signup"])
-
       body =
         post(conn, "/lib/auth/#{AuthMember.arke_id()}/signup", %{
           "email" => "picky@arke.test",

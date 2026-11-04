@@ -2,11 +2,13 @@ defmodule ArkeServer.Support.AuthMember do
   @moduledoc """
   A member arke in `test_schema` that is not `super_admin`, with an `email`,
   for the auth flows that look members up by email or treat admins apart.
+  It is in the `arke_auth_member` and `self_signup` groups.
 
-  Arke managers live in memory across the SQL sandbox, so the arke is created
-  once per test run and reused.
+  `setup!/0` runs once from test_helper.exs, outside the SQL sandbox: the
+  arke managers keep units in memory across tests, so the rows they point at
+  must not be rolled back.
   """
-  alias Arke.Boundary.ArkeManager
+  alias Arke.Boundary.{ArkeManager, ParameterManager}
   alias Arke.{LinkManager, QueryManager}
 
   @project :test_schema
@@ -14,44 +16,30 @@ defmodule ArkeServer.Support.AuthMember do
 
   def arke_id, do: @arke_id
 
-  def ensure_arke(groups \\ ["arke_auth_member"]) do
-    if is_nil(ArkeManager.get(@arke_id, @project)) do
+  def setup!() do
+    {:ok, _} =
       QueryManager.create(@project, ArkeManager.get(:arke, :arke_system), %{
         id: to_string(@arke_id),
         label: "Test auth member"
       })
 
-      # arke_auth reads `inactive` but no registry defines it
-      if is_nil(Arke.Boundary.ParameterManager.get(:inactive, @project)) do
+    # arke_auth reads `inactive` but no registry defines it
+    if is_nil(ParameterManager.get(:inactive, @project)) do
+      {:ok, _} =
         QueryManager.create(@project, ArkeManager.get(:boolean, :arke_system), %{
           id: "inactive",
           label: "Inactive",
           default_boolean: false
         })
-      end
-
-      for parameter <- ["arke_system_user", "email", "inactive"],
-          do: LinkManager.add_node(@project, to_string(@arke_id), parameter, "parameter")
     end
 
-    for group <- groups, do: add_to_group(group)
+    for parameter <- ["arke_system_user", "email", "inactive"],
+        do: {:ok, _} = LinkManager.add_node(@project, to_string(@arke_id), parameter, "parameter")
 
-    ArkeManager.get(@arke_id, @project)
-  end
+    for group <- ["arke_auth_member", "self_signup"],
+        do: {:ok, _} = LinkManager.add_node(@project, group, to_string(@arke_id), "group")
 
-  def add_to_group(group) do
-    case Arke.Boundary.GroupManager.get(String.to_existing_atom(group), @project) do
-      nil ->
-        :ok
-
-      group_unit ->
-        ids = Arke.Boundary.GroupManager.get_arke_list(group_unit) |> Enum.map(& &1.id)
-
-        unless @arke_id in ids,
-          do: LinkManager.add_node(@project, group, to_string(@arke_id), "group")
-
-        :ok
-    end
+    :ok
   end
 
   @doc "Creates a user whose only member in `test_schema` is a #{@arke_id}."
@@ -68,7 +56,7 @@ defmodule ArkeServer.Support.AuthMember do
 
   def create(user) do
     {:ok, member} =
-      QueryManager.create(@project, ensure_arke(), %{
+      QueryManager.create(@project, ArkeManager.get(@arke_id, @project), %{
         arke_system_user: to_string(user.id),
         email: user.data.email
       })
