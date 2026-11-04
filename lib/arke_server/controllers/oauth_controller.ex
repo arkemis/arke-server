@@ -243,7 +243,10 @@ defmodule ArkeServer.OAuthController do
     member_model = ArkeManager.get(member_id, project)
 
     member_data =
-      Map.put(params, "arke_system_user", to_string(user.id)) |> Map.put("email", user.data.email)
+      params
+      |> ArkeServer.Utils.MemberArke.drop_protected()
+      |> Map.put("arke_system_user", to_string(user.id))
+      |> Map.put("email", user.data.email)
 
     new_data =
       for {key, val} <- member_data,

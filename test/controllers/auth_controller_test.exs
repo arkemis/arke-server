@@ -57,6 +57,29 @@ defmodule ArkeServer.AuthControllerTest do
       delete_user("user3")
     end
 
+    test "ignores the fields a client must not set", %{conn: conn} do
+      AuthMember.ensure_arke(["arke_auth_member", "self_signup"])
+
+      body =
+        post(conn, "/lib/auth/#{AuthMember.arke_id()}/signup", %{
+          "email" => "picky@arke.test",
+          "inactive" => true,
+          "id" => "chosen_member_id",
+          "arke_system_user" => %{
+            "username" => "picky",
+            "password" => "password",
+            "email" => "picky@arke.test"
+          }
+        })
+        |> json_response(200)
+
+      refute body["content"]["id"] == "chosen_member_id"
+      member = QueryManager.get_by(project: :test_schema, id: body["content"]["id"])
+      refute member.data.inactive
+
+      delete_user("picky")
+    end
+
     test "refuses super_admin", %{conn: conn} do
       body = signup(conn, "super_admin", "would_be_admin") |> json_response(403)
 

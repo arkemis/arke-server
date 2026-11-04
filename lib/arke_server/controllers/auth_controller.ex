@@ -87,6 +87,7 @@ defmodule ArkeServer.AuthController do
   def signup(%{body_params: params} = conn, %{"arke_id" => arke_id}) do
     project = get_project(conn.assigns[:arke_project])
     auth_mode = System.get_env("AUTH_MODE", "default")
+    params = ArkeServer.Utils.MemberArke.drop_protected(params)
 
     # Only the member arkes in the self_signup group are open to sign-up;
     # any other arke, super_admin above all, is created by an admin.
