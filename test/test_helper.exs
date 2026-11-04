@@ -23,3 +23,5 @@ create_support_arke = fn ->
 end
 
 create_support_arke.()
+
+ArkeServer.Support.AuthMember.setup!()
