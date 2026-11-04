@@ -89,8 +89,9 @@ defmodule ArkeServer.AuthController do
     auth_mode = System.get_env("AUTH_MODE", "default")
     params = ArkeServer.Utils.MemberArke.drop_protected(params)
 
-    # Only the member arkes in the self_signup group are open to sign-up;
-    # any other arke, super_admin above all, is created by an admin.
+    # Only the member arkes listed in `config :arke_server, :self_signup_arkes`
+    # are open to sign-up; any other arke, super_admin above all, is created
+    # by an admin.
     with true <- ArkeServer.Utils.MemberArke.self_signup?(arke_id, project),
          arke = ArkeManager.get(arke_id, project),
          %Arke.Core.Unit{} = unit <- Arke.Core.Unit.load(arke, data_as_klist(params), :create),
