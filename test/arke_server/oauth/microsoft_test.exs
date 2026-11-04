@@ -44,7 +44,7 @@ defmodule ArkeServer.OAuth.Provider.MicrosoftTest do
     )
   end
 
-  defp request(key, claim_overrides) do
+  defp request(key, claim_overrides, signing_key \\ nil) do
     {_, key_map} = JOSE.JWK.to_map(key)
 
     stub(Req, :get, fn url, _opts ->
@@ -56,7 +56,7 @@ defmodule ArkeServer.OAuth.Provider.MicrosoftTest do
       {:ok, %{status: 200, body: body}}
     end)
 
-    token = sign(key, claims(claim_overrides))
+    token = sign(signing_key || key, claims(claim_overrides))
 
     %Plug.Conn{body_params: %{"id_token" => token, "access_token" => "graph-token"}}
     |> Microsoft.handle_request()
@@ -97,6 +97,14 @@ defmodule ArkeServer.OAuth.Provider.MicrosoftTest do
       conn = request(key, %{"tid" => "someone-elses-tenant"})
 
       assert conn.assigns[:arke_server_oauth_failure] == "Invalid tenant"
+    end
+
+    test "rejects a token signed with a key the tenant does not publish", %{key: key} do
+      forged_with = JOSE.JWK.from_oct(:crypto.strong_rand_bytes(32))
+      conn = request(key, %{}, forged_with)
+
+      assert conn.assigns[:arke_server_oauth_failure] == "Invalid signature"
+      refute conn.private[:arke_server_oauth]
     end
 
     test "rejects a request carrying no token" do
