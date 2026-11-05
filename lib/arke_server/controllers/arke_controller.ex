@@ -26,7 +26,7 @@ defmodule ArkeServer.ArkeController do
   alias Arke.Boundary.ArkeManager
   alias UnitSerializer
   alias ArkeServer.ResponseManager
-  alias ArkeServer.Utils.{QueryFilters,QueryOrder, QueryProcessor,Permission}
+  alias ArkeServer.Utils.{QueryFilters, QueryOrder, QueryProcessor, Permission}
 
   alias ArkeServer.Openapi.Responses
 
