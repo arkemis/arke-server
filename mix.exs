@@ -68,6 +68,7 @@ defmodule ArkeServer.MixProject do
       {:open_api_spex, "~> 3.16"},
       {:ymlr, "~> 2.0", only: :dev},
       {:excoveralls, "~> 0.10", only: :test},
+      {:mimic, "~> 2.3", only: :test},
       {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
       {:arke, "~> 0.6.0"},
       {:arke_postgres, "~> 0.5.0"},
