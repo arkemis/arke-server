@@ -16,7 +16,7 @@
   `[:unit]` — most issues are a wrong project atom or an ANDed permission
   filter.
 - Version pins are tight and load-bearing: `phoenix ~> 1.7.0`,
-  `arke ~> 0.8.0`, `arke_postgres ~> 0.7.0`, `arke_auth ~> 0.6.0`. Do not mix
+  `arke ~> 0.8.0`, `arke_postgres ~> 0.7.0`, `arke_auth ~> 0.6.1`. Do not mix
   with older arke releases.
 - Nested filters/order (dotted paths), `count_only` and `load_files` require
   arke_server ≥ 0.4.x; deep filter nesting requires 0.5.x.
