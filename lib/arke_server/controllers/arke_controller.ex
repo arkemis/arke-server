@@ -59,28 +59,27 @@ defmodule ArkeServer.ArkeController do
     # all arkes struct and gen server are on :arke_system so it won't be changed to project
     project = conn.assigns[:arke_project]
     params = Map.put(params, "runtime_data", %{conn: conn})
-    arke = ArkeManager.get(String.to_atom(id), project)
+    arke = ArkeManager.get(id, project)
 
     # TODO handle query parameter with plugs
     load_links = Map.get(conn.query_params, "load_links", "false") == "true"
     load_values = Map.get(conn.query_params, "load_values", "false") == "true"
     load_files = Map.get(conn.query_params, "load_files", "false") == "true"
 
-    QueryManager.create(project, arke, data_as_klist(params))
-    |> case do
-      {:ok, unit} ->
-        ResponseManager.send_resp(conn, 200, %{
-          content:
-            StructManager.encode(unit,
-              load_links: load_links,
-              load_values: load_values,
-              load_files: load_files,
-              type: :json
-            )
-        })
-
-      {:error, error} ->
-        ResponseManager.send_resp(conn, 400, nil, error)
+    with %Arke.Core.Unit{} <- arke,
+         {:ok, unit} <- QueryManager.create(project, arke, data_as_klist(params)) do
+      ResponseManager.send_resp(conn, 200, %{
+        content:
+          StructManager.encode(unit,
+            load_links: load_links,
+            load_values: load_values,
+            load_files: load_files,
+            type: :json
+          )
+      })
+    else
+      nil -> ResponseManager.send_resp(conn, 404, nil)
+      {:error, error} -> ResponseManager.send_resp(conn, 400, nil, error)
     end
   end
 
@@ -198,7 +197,7 @@ defmodule ArkeServer.ArkeController do
     arke =
       ArkeManager.get(arke_id, project) |> Arke.Core.Unit.update(runtime_data: %{conn: conn})
 
-    case ArkeManager.call_func(arke, String.to_atom(function_name), [arke]) do
+    case call_func(arke, function_name, [arke]) do
       {:file, file, filename} ->
         send_download(conn, {:binary, file}, filename: filename)
 
@@ -241,7 +240,7 @@ defmodule ArkeServer.ArkeController do
 
     case unit do
       %Arke.Core.Unit{} = unit ->
-        case ArkeManager.call_func(arke, String.to_atom(function_name), [arke, unit]) do
+        case call_func(arke, function_name, [arke, unit]) do
           {:file, file, filename} ->
             send_download(conn, {:binary, file}, filename: filename)
 
@@ -287,6 +286,15 @@ defmodule ArkeServer.ArkeController do
           count: count,
           items: StructManager.encode(units, type: :json)
         })
+    end
+  end
+
+  # A function name that is not an existing atom names no function, and
+  # must not create one.
+  defp call_func(unit, function_name, args) do
+    case ArkeServer.Utils.ExistingAtom.get(function_name) do
+      nil -> {:error, "Undefined function"}
+      func -> ArkeManager.call_func(unit, func, args)
     end
   end
 end

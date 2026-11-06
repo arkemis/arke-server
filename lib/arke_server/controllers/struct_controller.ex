@@ -44,7 +44,7 @@ defmodule ArkeServer.StructController do
   def get_arke_struct(conn, %{"arke_id" => id}) do
     project = conn.assigns[:arke_project]
 
-    case ArkeManager.get(String.to_atom(id), project) do
+    case ArkeManager.get(id, project) do
       nil ->
         ResponseManager.send_resp(conn, 404, nil)
 

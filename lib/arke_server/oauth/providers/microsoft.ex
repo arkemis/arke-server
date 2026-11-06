@@ -84,9 +84,12 @@ defmodule ArkeServer.OAuth.Provider.Microsoft do
   defp validate_signature(jwt) do
     case get_public_keys() do
       {:ok, keys} ->
+        # JOSE.JWT.verify/2 returns a {verified?, jwt, jws} tuple, which is
+        # always truthy: only `true` in its first element means a valid signature.
         Enum.find_value(keys, {:error, "Invalid signature"}, fn key ->
-          if JOSE.JWT.verify(key, jwt) do
-            :ok
+          case JOSE.JWT.verify(key, jwt) do
+            {true, _jwt, _jws} -> :ok
+            _ -> nil
           end
         end)
 
@@ -101,6 +104,9 @@ defmodule ArkeServer.OAuth.Provider.Microsoft do
     case Req.get(uri, retry: false) do
       {:ok, %{status: 200, body: body}} ->
         {:ok, body |> Map.get("keys") |> Enum.map(&JOSE.JWK.from(&1))}
+
+      {:ok, %{status: status}} ->
+        {:error, "Failed to fetch signing keys, status code: #{status}"}
 
       {:error, exception} ->
         {:error, Exception.message(exception)}
