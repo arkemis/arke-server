@@ -74,6 +74,7 @@ defmodule ArkeServer.MixProject do
       {:arke_postgres, "~> 0.5.0"},
       {:arke_auth, "~> 0.4.6"},
       {:hackney, "~> 1.18"},
+      {:httpoison, "~> 2.0"},
       {:swoosh, "~> 1.11"}
     ])
   end
