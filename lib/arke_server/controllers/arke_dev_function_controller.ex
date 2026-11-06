@@ -2,8 +2,10 @@ defmodule ArkeServer.ArkeDevFunctionController do
   use ArkeServer, :controller
   alias ArkeServer.ResponseManager
 
-  def export_arke_db_stucture(conn, params) do
-    project = Map.get(params, "project", "arke_system") |> String.to_atom()
+  # The project is the one in the arke-project-key header, which the token
+  # has been checked against.
+  def export_arke_db_stucture(conn, _params) do
+    project = conn.assigns[:arke_project]
     member = ArkeAuth.Guardian.get_member(conn)
 
     case member.arke_id do

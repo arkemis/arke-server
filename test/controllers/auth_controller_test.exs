@@ -22,14 +22,108 @@ defmodule ArkeServer.AuthControllerTest do
     end
   end
 
-  test "POST /lib/auth/signup", %{conn: conn} do
-    conn =
-      post(conn, "/lib/auth/signup", username: "user3", password: "password", type: "customer")
+  describe "POST /lib/auth/:arke_id/signup (ARKE-AUTH-01)" do
+    alias ArkeServer.Support.AuthMember
 
-    body_resp = json_response(conn, 201)
-    assert body_resp["content"]["username"] == "user3"
+    defp put_self_signup_arkes(arkes) do
+      previous = Application.get_env(:arke_server, :self_signup_arkes)
+      on_exit(fn -> Application.put_env(:arke_server, :self_signup_arkes, previous) end)
 
-    delete_user("user2")
+      if arkes,
+        do: Application.put_env(:arke_server, :self_signup_arkes, arkes),
+        else: Application.delete_env(:arke_server, :self_signup_arkes)
+    end
+
+    defp signup(conn, arke_id, username) do
+      post(conn, "/lib/auth/#{arke_id}/signup", %{
+        "email" => "#{username}@arke.test",
+        "arke_system_user" => %{
+          "username" => username,
+          "password" => "password",
+          "email" => "#{username}@arke.test"
+        }
+      })
+    end
+
+    test "signs up as a member arke in the self-signup list", %{conn: conn} do
+      body_resp = signup(conn, AuthMember.arke_id(), "user3") |> json_response(200)
+
+      assert body_resp["content"]["arke_id"] == to_string(AuthMember.arke_id())
+      assert is_binary(body_resp["content"]["access_token"])
+      assert is_binary(body_resp["content"]["refresh_token"])
+
+      user =
+        QueryManager.get_by(
+          project: :arke_system,
+          arke_id: :user,
+          id: body_resp["content"]["arke_system_user"]
+        )
+
+      assert user.data.username == "user3"
+
+      delete_user("user3")
+    end
+
+    test "ignores the fields a client must not set", %{conn: conn} do
+      body =
+        post(conn, "/lib/auth/#{AuthMember.arke_id()}/signup", %{
+          "email" => "picky@arke.test",
+          "inactive" => true,
+          "id" => "chosen_member_id",
+          "arke_system_user" => %{
+            "username" => "picky",
+            "password" => "password",
+            "email" => "picky@arke.test"
+          }
+        })
+        |> json_response(200)
+
+      refute body["content"]["id"] == "chosen_member_id"
+      member = QueryManager.get_by(project: :test_schema, id: body["content"]["id"])
+      refute member.data.inactive
+
+      delete_user("picky")
+    end
+
+    test "refuses super_admin", %{conn: conn} do
+      body = signup(conn, "super_admin", "would_be_admin") |> json_response(403)
+
+      assert List.first(body["messages"])["message"] == "signup not allowed"
+      assert QueryManager.get_by(project: :arke_system, username: "would_be_admin") == nil
+    end
+
+    test "refuses a member arke outside the self-signup list", %{conn: conn} do
+      refute ArkeServer.Utils.MemberArke.self_signup?("member_public", :test_schema)
+
+      signup(conn, "member_public", "not_open") |> json_response(403)
+    end
+
+    test "refuses an unknown arke", %{conn: conn} do
+      signup(conn, "no_such_member_arke", "nobody") |> json_response(403)
+    end
+
+    test "super_admin stays refused when it is listed" do
+      put_self_signup_arkes([:test_auth_member, "super_admin"])
+      Arke.LinkManager.add_node(:test_schema, "enable_sso", "super_admin", "group")
+
+      refute ArkeServer.Utils.MemberArke.self_signup?("super_admin", :test_schema)
+      refute ArkeServer.Utils.MemberArke.sso_signup?("super_admin", :test_schema)
+    end
+
+    test "a listed arke must also be an arke_auth_member of the project", %{conn: conn} do
+      put_self_signup_arkes([:test_auth_member, :member_public, :arke])
+
+      assert ArkeServer.Utils.MemberArke.self_signup?("member_public", :test_schema)
+      refute ArkeServer.Utils.MemberArke.self_signup?("arke", :test_schema)
+      signup(conn, "arke", "not_a_member") |> json_response(403)
+    end
+
+    test "sign-up is closed when nothing is listed", %{conn: conn} do
+      put_self_signup_arkes(nil)
+
+      refute ArkeServer.Utils.MemberArke.self_signup?(AuthMember.arke_id(), :test_schema)
+      signup(conn, AuthMember.arke_id(), "closed") |> json_response(403)
+    end
   end
 
   test "POST /lib/auth/refresh", %{conn: conn} do
@@ -52,6 +146,78 @@ defmodule ArkeServer.AuthControllerTest do
 
     assert new_access_token != old_access_token and new_refresh_token != old_refresh_token
     delete_user("user2")
+  end
+
+  describe "token types (ARKE-AUTH-04)" do
+    setup [:create_user_setup]
+
+    defp tokens(conn) do
+      post(conn, "/lib/auth/signin", username: "user2", password: "password")
+      |> json_response(200)
+      |> Map.fetch!("content")
+    end
+
+    test "a refresh token is not a bearer token", %{conn: conn} do
+      %{"refresh_token" => refresh_token} = tokens(conn)
+
+      build_conn()
+      |> Plug.Conn.put_req_header("arke-project-key", "test_schema")
+      |> Plug.Conn.put_req_header("authorization", "Bearer #{refresh_token}")
+      |> post("/lib/auth/verify")
+      |> json_response(401)
+    end
+
+    test "refresh needs no authorization header", %{conn: conn} do
+      %{"refresh_token" => refresh_token} = tokens(conn)
+
+      body = post(conn, "/lib/auth/refresh", refresh_token: refresh_token) |> json_response(200)
+      assert body["content"]["access_token"]
+    end
+
+    test "an access token cannot be exchanged for new tokens", %{conn: conn} do
+      %{"access_token" => access_token} = tokens(conn)
+
+      build_conn()
+      |> Plug.Conn.put_req_header("arke-project-key", "test_schema")
+      |> Plug.Conn.put_req_header("authorization", "Bearer #{access_token}")
+      |> post("/lib/auth/refresh", refresh_token: access_token)
+      |> json_response(400)
+    end
+  end
+
+  describe "token project (ARKE-SRV-01)" do
+    setup [:create_user_setup]
+
+    test "a token is rejected for another project than its own" do
+      user = Arke.QueryManager.get_by(project: :arke_system, username: "user2")
+
+      body =
+        build_authenticated_conn(user)
+        |> Plug.Conn.put_req_header("arke-project-key", "arke_system")
+        |> post("/lib/auth/verify")
+        |> json_response(401)
+
+      assert List.first(body["messages"])["message"] == "invalid_project"
+    end
+
+    test "a project member cannot manage projects" do
+      user = Arke.QueryManager.get_by(project: :arke_system, username: "user2")
+
+      build_authenticated_conn(user)
+      |> get("/lib/arke_project/unit")
+      |> json_response(401)
+    end
+
+    test "the impersonate-token header is ignored while impersonation is off" do
+      user = Arke.QueryManager.get_by(project: :arke_system, username: "user2")
+      {:ok, token, _} = Guardian.encode_and_sign(get_member(user))
+
+      build_system_conn(user)
+      |> Plug.Conn.put_req_header("arke-project-key", "test_schema")
+      |> Plug.Conn.put_req_header("impersonate-token", "Bearer #{token}")
+      |> post("/lib/auth/verify")
+      |> json_response(401)
+    end
   end
 
   describe "POST /lib/auth/verify" do
@@ -87,6 +253,92 @@ defmodule ArkeServer.AuthControllerTest do
 
       assert List.first(conn["messages"])["message"] == "missing authorization header"
       delete_user("user2")
+    end
+  end
+
+  describe "POST /lib/auth/signin with an auth_token (ARKE-AUTH-06)" do
+    test "answers 401 for an expired auth_token", %{conn: conn} do
+      user = get_user("user_authtoken_expired")
+      member = get_member(user)
+
+      {:ok, token} =
+        ArkeAuth.Core.TemporaryToken.generate_auth_token(:test_schema, member, 1, true, [])
+
+      {:ok, _} =
+        QueryManager.update(token,
+          expiration_datetime: NaiveDateTime.utc_now() |> NaiveDateTime.add(-1, :second)
+        )
+
+      post(conn, "/lib/auth/signin", auth_token: to_string(token.id)) |> json_response(401)
+      delete_user("user_authtoken_expired")
+    end
+
+    test "answers 401 for an auth_token without an expiry", %{conn: conn} do
+      user = get_user("user_authtoken_noexpiry")
+      member = get_member(user)
+
+      {:ok, token} =
+        ArkeAuth.Core.TemporaryToken.generate_auth_token(:test_schema, member, 1, true, [])
+
+      {:ok, _} = QueryManager.update(token, expiration_datetime: nil)
+
+      post(conn, "/lib/auth/signin", auth_token: to_string(token.id)) |> json_response(401)
+      delete_user("user_authtoken_noexpiry")
+    end
+  end
+
+  test "credentials are filtered out of the request logs (ARKE-AUTH-06)" do
+    filtered =
+      Phoenix.Logger.filter_values(%{
+        "auth_token" => "a",
+        "refresh_token" => "b",
+        "otp" => "c",
+        "new_password" => "d",
+        "username" => "e"
+      })
+
+    assert filtered == %{
+             "auth_token" => "[FILTERED]",
+             "refresh_token" => "[FILTERED]",
+             "otp" => "[FILTERED]",
+             "new_password" => "[FILTERED]",
+             "username" => "e"
+           }
+  end
+
+  describe "POST /lib/auth/recover_password" do
+    test "answers 200 when no member carries the email", %{conn: conn} do
+      body = post(conn, "/lib/auth/recover_password", email: "nobody@arke.test")
+
+      assert body.status == 200
+      assert body.resp_body =~ "An email has been sent"
+    end
+  end
+
+  describe "POST /lib/auth/reset_password without the required params" do
+    test "answers 400 instead of crashing", %{conn: conn} do
+      post(conn, "/lib/auth/reset_password", new_password: "whatever") |> json_response(400)
+    end
+  end
+
+  describe "POST /lib/auth/signin with an auth_token, token claims" do
+    test "signs only the member's public fields into the token", %{conn: conn} do
+      user = get_user("user_authtoken_claims")
+      member = get_member(user)
+
+      {:ok, token} =
+        ArkeAuth.Core.TemporaryToken.generate_auth_token(:test_schema, member, 1, true, [])
+
+      body = post(conn, "/lib/auth/signin", auth_token: to_string(token.id)) |> json_response(200)
+      {:ok, claims} = Guardian.decode_and_verify(body["content"]["access_token"])
+
+      assert claims["sub"]["id"] == to_string(member.id)
+      assert claims["sub"]["project"] == "test_schema"
+
+      assert Map.keys(claims["sub"]) --
+               ~w(id project email first_name last_name subscription_active) == []
+
+      delete_user("user_authtoken_claims")
     end
   end
 end
