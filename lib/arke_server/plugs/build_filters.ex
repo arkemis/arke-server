@@ -50,21 +50,21 @@ defmodule ArkeServer.Plugs.BuildFilters do
         remove_match(match, acc)
       end)
       |> String.split(",")
-      |> Enum.reduce(%{error: [],operator: []},fn x,acc ->
+      |> Enum.reduce(%{error: [], operator: []}, fn x, acc ->
         case get_operator(x) do
           {:ok, op} ->
-            Map.update(acc,:operator,[],fn old ->  [op | old]end)
+            Map.update(acc, :operator, [], fn old -> [op | old] end)
 
           {:error, msg} ->
-            Map.update(acc,:error,[],fn old -> msg ++ old end)
+            Map.update(acc, :error, [], fn old -> msg ++ old end)
         end
       end)
 
+    errors = Map.get(operator_list, :error)
+    operators = Map.get(operator_list, :operator)
 
-    errors = Map.get(operator_list,:error)
-    operators =  Map.get(operator_list,:operator)
-    if length(errors) >0 do
-      {:error,errors}
+    if length(errors) > 0 do
+      {:error, errors}
     else
       filters =
         Enum.with_index(operators)

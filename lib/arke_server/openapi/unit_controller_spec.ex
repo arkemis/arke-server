@@ -20,7 +20,6 @@ defmodule ArkeServer.Openapi.UnitControllerSpec do
   alias ArkeServer.Openapi.Responses
   alias OpenApiSpex.{Operation, Reference}
 
-
   def search_operation() do
     %Operation{
       tags: ["Unit"],
@@ -57,5 +56,4 @@ defmodule ArkeServer.Openapi.UnitControllerSpec do
       responses: Responses.get_responses([201, 204])
     }
   end
-
 end
