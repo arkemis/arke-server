@@ -83,14 +83,11 @@ defmodule ArkeServer.OAuthController do
     user = QueryManager.get_by(project: :arke_system, arke_id: :user, id: user_resource.id)
     project = conn.assigns[:arke_project]
     provider_arke_id = String.to_existing_atom("oauth_#{provider}")
-    enable_sso_group = GroupManager.get(:enable_sso, project)
     # check if the given member_id is enable to sso login
     # check if the user has any oauth link
     # check if one of the oauth link has the arke_id equal to the given provider
     # there are no units associated with that provider or the provider does not exist
-    with true <-
-           member_id in (GroupManager.get_arke_list(enable_sso_group)
-                         |> Enum.map(fn ak -> to_string(ak.id) end)),
+    with true <- ArkeServer.Utils.MemberArke.sso_signup?(member_id, project),
          [_data] = link_list <- get_link(user, :child),
          %Unit{} = _unit <-
            Enum.find(link_list, fn link_unit -> link_unit.arke_id == provider_arke_id end) do
@@ -100,7 +97,7 @@ defmodule ArkeServer.OAuthController do
           case create_member(project, user, params, member_id) do
             {:ok, member} ->
               {:ok, resource_member, access_token, refresh_token} =
-                Auth.create_tokens(member, "default")
+                Auth.create_tokens(Auth.format_member(member), "default")
 
               content = create_response_body(resource_member, access_token, refresh_token, false)
 
@@ -243,12 +240,21 @@ defmodule ArkeServer.OAuthController do
   end
 
   defp create_member(project, user, params, member_id) do
-    member_model = ArkeManager.get(String.to_atom(member_id), project)
+    member_model = ArkeManager.get(member_id, project)
 
     member_data =
-      Map.put(params, "arke_system_user", to_string(user.id)) |> Map.put("email", user.data.email)
+      params
+      |> ArkeServer.Utils.MemberArke.drop_protected()
+      |> Map.put("arke_system_user", to_string(user.id))
+      |> Map.put("email", user.data.email)
 
-    new_data = for {key, val} <- member_data, into: %{}, do: {String.to_atom(key), val}
+    new_data =
+      for {key, val} <- member_data,
+          atom = ArkeServer.Utils.ExistingAtom.get(key),
+          not is_nil(atom),
+          into: %{},
+          do: {atom, val}
+
     QueryManager.create(project, member_model, new_data)
   end
 

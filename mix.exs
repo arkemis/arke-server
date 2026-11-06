@@ -68,7 +68,7 @@ defmodule ArkeServer.MixProject do
       {:mimic, "~> 2.3", only: :test},
       {:arke, "~> 0.8.0"},
       {:arke_postgres, "~> 0.7.0"},
-      {:arke_auth, "~> 0.6.0"},
+      {:arke_auth, "~> 0.6.1"},
       {:req, "~> 0.7"},
       {:swoosh, "~> 1.11"}
     ])
