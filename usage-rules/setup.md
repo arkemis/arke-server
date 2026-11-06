@@ -46,3 +46,11 @@
   `forward "/", ArkeServer.Router` in your router.
 - CORS is wide open at the library endpoint (`origins: "*"`); front it with
   your own gate if you need stricter CORS.
+
+## Security configuration
+
+- Public sign-up is closed by default. Set `config :arke_server, :self_signup_arkes, [:customer]` to allow specific member arkes. `super_admin` is always refused. SSO provisioning separately requires membership in the project's `enable_sso` group.
+- `AUTH_MODE` applies to every member, including administrators. App review codes require both `APP_REVIEW_EMAIL` and `APP_REVIEW_CODE`; there is no default code.
+- Bearer authentication accepts access tokens only and binds them to their issuing project. Send the refresh token in the body of `POST /lib/auth/refresh`; an access token is not required.
+- OTP verification uses `ArkeAuth.Boundary.OtpManager.verify_code/4`. Deploy with the corresponding arke-auth security update for this release line.
+- API documentation requires a valid `super_admin` access token.

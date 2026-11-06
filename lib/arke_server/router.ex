@@ -56,7 +56,7 @@ defmodule ArkeServer.Router do
     plug(ArkeServer.Plugs.Permission)
   end
 
-  #todo: refactor router to divide permission and auth
+  # todo: refactor router to divide permission and auth
   pipeline :tmp_auth_pipe do
     plug(:accepts, ["json", "multipart"])
     plug(ArkeServer.Plugs.AuthPipeline)
@@ -75,9 +75,14 @@ defmodule ArkeServer.Router do
     plug(OpenApiSpex.Plug.PutApiSpec, module: ArkeServer.ApiSpec)
   end
 
+  pipeline :api_docs do
+    plug(ArkeServer.Plugs.ApiDocsAuth)
+  end
+
   # ------ OPENAPI -------
 
   scope "/lib/doc" do
+    pipe_through([:api_docs])
     get("/swaggerui", OpenApiSpex.Plug.SwaggerUI, path: "/lib/doc/openapi")
 
     pipe_through([:openapi])
@@ -140,7 +145,7 @@ defmodule ArkeServer.Router do
     end
 
     scope "/arke_dev_function" do
-      pipe_through([:tmp_auth_pipe])
+      pipe_through([:project, :tmp_auth_pipe])
       get("/export_arke_db_stucture", ArkeDevFunctionController, :export_arke_db_stucture)
     end
 

@@ -3,7 +3,7 @@ defmodule ArkeServer.Swoosh.Adapters.Mailtrap do
     :custom_variables,
     :category,
     :template_uuid,
-    :template_variables,
+    :template_variables
   ]
 
   @moduledoc ~s"""
@@ -88,7 +88,7 @@ defmodule ArkeServer.Swoosh.Adapters.Mailtrap do
 
     body = email |> prepare_body() |> Swoosh.json_library().encode!
     url = prepare_url(config)
-#    IO.inspect({url, headers, body, email})
+    #    IO.inspect({url, headers, body, email})
     case Swoosh.ApiClient.post(url, headers, body, email) do
       {:ok, code, _headers, body} when code >= 200 and code <= 399 ->
         {:ok, %{ids: Swoosh.json_library().decode!(body)["message_ids"]}}
@@ -114,7 +114,7 @@ defmodule ArkeServer.Swoosh.Adapters.Mailtrap do
   end
 
   defp base_url(config),
-       do: config[:base_url] || @base_url
+    do: config[:base_url] || @base_url
 
   defp prepare_body(email) do
     %{}
@@ -139,33 +139,33 @@ defmodule ArkeServer.Swoosh.Adapters.Mailtrap do
   defp reply_to_item(email), do: email
 
   defp prepare_from(body, %{from: from}),
-       do: Map.put(body, :from, from |> email_item)
+    do: Map.put(body, :from, from |> email_item)
 
   defp prepare_to(body, %{to: to}),
-       do: Map.put(body, :to, to |> Enum.map(&email_item(&1)))
+    do: Map.put(body, :to, to |> Enum.map(&email_item(&1)))
 
   defp prepare_cc(body, %{cc: []}), do: body
 
   defp prepare_cc(body, %{cc: cc}),
-       do: Map.put(body, :cc, cc |> Enum.map(&email_item(&1)))
+    do: Map.put(body, :cc, cc |> Enum.map(&email_item(&1)))
 
   defp prepare_bcc(body, %{bcc: []}), do: body
 
   defp prepare_bcc(body, %{bcc: bcc}),
-       do: Map.put(body, :bcc, bcc |> Enum.map(&email_item(&1)))
+    do: Map.put(body, :bcc, bcc |> Enum.map(&email_item(&1)))
 
   defp prepare_subject(body, %{subject: subject}),
-       do: Map.put(body, :subject, subject)
+    do: Map.put(body, :subject, subject)
 
   defp prepare_text(body, %{text_body: nil}), do: body
 
   defp prepare_text(body, %{text_body: text}),
-       do: Map.put(body, :text, text)
+    do: Map.put(body, :text, text)
 
   defp prepare_html(body, %{html_body: nil}), do: body
 
   defp prepare_html(body, %{html_body: html}),
-       do: Map.put(body, :html, html)
+    do: Map.put(body, :html, html)
 
   defp prepare_attachments(body, %{attachments: []}), do: body
 
@@ -205,7 +205,7 @@ defmodule ArkeServer.Swoosh.Adapters.Mailtrap do
   end
 
   defp prepare_custom_headers(body, %{headers: headers}),
-       do: Map.put(body, :headers, headers)
+    do: Map.put(body, :headers, headers)
 
   defp prepare_provider_options_body_fields(body, %{provider_options: provider_options}) do
     Map.merge(body, Map.take(provider_options, @provider_options_body_fields))

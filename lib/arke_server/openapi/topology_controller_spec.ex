@@ -115,5 +115,4 @@ defmodule ArkeServer.Openapi.TopologyControllerSpec do
       responses: Responses.get_responses([200])
     }
   end
-
 end

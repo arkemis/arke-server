@@ -1,13 +1,12 @@
 defmodule ArkeServer.Mailer do
-
-  defmacro __using__(_)do
+  defmacro __using__(_) do
     quote do
       use Swoosh.Mailer, otp_app: :arke_server
       import Swoosh.Email
 
-      def signin(conn,member,opts), do: {:ok,opts}
-      def signup(conn,params,opts), do: {:ok,opts}
-      def reset_password(conn,member,opts), do: {:ok,opts}
+      def signin(conn, member, opts), do: {:ok, opts}
+      def signup(conn, params, opts), do: {:ok, opts}
+      def reset_password(conn, member, opts), do: {:ok, opts}
 
       def send_email(opts) when is_list(opts) do
         case Keyword.keyword?(opts) do
@@ -32,6 +31,7 @@ defmodule ArkeServer.Mailer do
         text = Map.get(opts, :text, "")
         html = Map.get(opts, :html, "")
         attachments = Map.get(opts, :attachments, [])
+
         new()
         |> from(sender)
         |> to(receiver)
@@ -47,7 +47,7 @@ defmodule ArkeServer.Mailer do
       defp get_sender(opts) do
         case Map.get(opts, :from, nil) do
           nil ->
-            case Application.get_env(:arke_server,__MODULE__)[:default_sender] do
+            case Application.get_env(:arke_server, __MODULE__)[:default_sender] do
               nil -> raise "missing `from:` value and `default_sender` is not set"
               default_sender -> default_sender
             end
@@ -63,7 +63,7 @@ defmodule ArkeServer.Mailer do
       end
 
       defp parse_option(email, [{k, v} | t])
-           when  not is_nil(v) do
+           when not is_nil(v) do
         parse_option(put_provider_option(email, k, v), t)
       end
 
@@ -72,8 +72,7 @@ defmodule ArkeServer.Mailer do
       defp parse_option(email, nil), do: email
       defp parse_option(email, []), do: email
 
-      defoverridable signin: 3,signup: 3, reset_password: 3,send_email: 1
+      defoverridable signin: 3, signup: 3, reset_password: 3, send_email: 1
     end
-
   end
 end

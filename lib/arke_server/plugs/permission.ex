@@ -60,7 +60,7 @@ defmodule ArkeServer.Plugs.Permission do
 
     with {:ok, data} <- Permission.get_public_permission(arke_id, project),
          true <- is_permitted?(data, action) do
-      assign(conn, :permission_filter, get_permission_filter(conn, data))
+      assign_permission_filter(conn, data, nil)
     else
       _ ->
         auth_conn = get_auth_conn(conn)
@@ -73,14 +73,10 @@ defmodule ArkeServer.Plugs.Permission do
                  project
                ),
              true <- is_permitted?(data, action) do
-          assign(
+          assign_permission_filter(
             auth_conn,
-            :permission_filter,
-            get_permission_filter(
-              auth_conn,
-              data,
-              ArkeAuth.Guardian.get_member(auth_conn, impersonate: true)
-            )
+            data,
+            ArkeAuth.Guardian.get_member(auth_conn, impersonate: true)
           )
         else
           %Plug.Conn{halted: true} = auth_conn ->
@@ -97,12 +93,22 @@ defmodule ArkeServer.Plugs.Permission do
     end
   end
 
+  # Without enable_impersonate the permissions are those of the bearer token,
+  # which only AuthPipeline binds to the requested project, so the
+  # impersonate-token header is then ignored.
   defp get_auth_conn(conn) do
-    case get_impersonate_header(conn) do
-      {:ok, []} -> ArkeServer.Plugs.AuthPipeline.call(conn, [])
-      {:ok, [""]} -> ArkeServer.Plugs.AuthPipeline.call(conn, [])
-      {:ok, _header} -> ArkeServer.Plugs.ImpersonateAuthPipeline.call(conn, [])
+    case {impersonate_enabled?(), get_impersonate_header(conn)} do
+      {true, {:ok, [header | _]}} when header != "" ->
+        ArkeServer.Plugs.ImpersonateAuthPipeline.call(conn, [])
+
+      _ ->
+        ArkeServer.Plugs.AuthPipeline.call(conn, [])
     end
+  end
+
+  defp impersonate_enabled?() do
+    Application.get_env(:arke_auth, ArkeAuth.Guardian, [])
+    |> Keyword.get(:enable_impersonate, false)
   end
 
   defp halt_conn(conn, message, status) do
@@ -112,17 +118,36 @@ defmodule ArkeServer.Plugs.Permission do
     |> Plug.Conn.halt()
   end
 
+  defp is_permitted?(_permission, nil), do: false
   defp is_permitted?(permission, action), do: Map.get(permission, action, false)
 
-  defp parse_method(method), do: String.downcase(method) |> String.to_atom()
-  defp get_permission_filter(conn, %{filter: nil} = permission), do: permission
+  # Any method string reaches the plug; only these map to a permission.
+  defp parse_method("GET"), do: :get
+  defp parse_method("POST"), do: :post
+  defp parse_method("PUT"), do: :put
+  defp parse_method("PATCH"), do: :put
+  defp parse_method("DELETE"), do: :delete
+  defp parse_method(_method), do: nil
 
-  defp get_permission_filter(conn, permission, member \\ nil) do
+  # A nil filter on the permission means it grants every row. A filter that
+  # cannot be parsed must not be read the same way: the request is refused.
+  defp assign_permission_filter(conn, permission, member) do
+    case get_permission_filter(conn, permission, member) do
+      {:ok, permission} -> assign(conn, :permission_filter, permission)
+      :error -> halt_conn(conn, "forbidden", 403)
+    end
+  end
+
+  defp get_permission_filter(_conn, %{filter: filter} = permission, _member)
+       when filter in [nil, ""],
+       do: {:ok, Map.put(permission, :filter, nil)}
+
+  defp get_permission_filter(conn, permission, member) do
     filter = get_member_filter(permission.filter, member)
 
     case QueryFilters.get_from_string(conn, filter) do
-      {:ok, data} -> Map.put(permission, :filter, data)
-      {:error, _msg} -> Map.put(permission, :filter, nil)
+      {:ok, data} -> {:ok, Map.put(permission, :filter, data)}
+      {:error, _msg} -> :error
     end
   end
 

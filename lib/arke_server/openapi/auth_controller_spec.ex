@@ -109,5 +109,4 @@ defmodule ArkeServer.Openapi.AuthControllerSpec do
       responses: Responses.get_responses([200, 400])
     }
   end
-
 end

@@ -23,7 +23,10 @@ defmodule ArkeServer.HttpClientTest do
     for {name, value} <- vars do
       previous = System.get_env(name)
       System.put_env(name, value)
-      on_exit(fn -> if previous, do: System.put_env(name, previous), else: System.delete_env(name) end)
+
+      on_exit(fn ->
+        if previous, do: System.put_env(name, previous), else: System.delete_env(name)
+      end)
     end
   end
 
@@ -120,7 +123,12 @@ defmodule ArkeServer.HttpClientTest do
 
       Req.Test.stub(__MODULE__, fn conn ->
         {:ok, body, conn} = Plug.Conn.read_body(conn)
-        send(pid, {:request, conn.request_path, Plug.Conn.get_req_header(conn, "authorization"), body})
+
+        send(
+          pid,
+          {:request, conn.request_path, Plug.Conn.get_req_header(conn, "authorization"), body}
+        )
+
         Req.Test.json(conn, %{"id" => "notification-1"})
       end)
 
