@@ -23,7 +23,7 @@ defmodule ArkeServer.AuthController do
   use ArkeServer.Openapi.Spec, module: ArkeServer.Openapi.AuthControllerSpec
 
   alias ArkeServer.ResponseManager
-  alias ArkeAuth.Core.{User, Auth, Otp}
+  alias ArkeAuth.Core.{User, Auth, Otp, TemporaryToken}
   alias Arke.Boundary.ArkeManager
   alias ArkeAuth.Boundary.OtpManager
   alias Arke.QueryManager
@@ -268,64 +268,39 @@ defmodule ArkeServer.AuthController do
     end
   end
 
-  def signin(conn, %{"auth_token" => auth_token} = params) do
+  def signin(conn, %{"auth_token" => auth_token} = _params) do
     project = get_project(conn.assigns[:arke_project])
 
-    case QueryManager.get_by(project: project, arke_id: :temporary_token, id: auth_token) do
-      nil ->
-        ResponseManager.send_resp(conn, 401, "Unauthorized")
+    case TemporaryToken.consume(project, auth_token) do
+      {:error, errors} ->
+        ResponseManager.send_resp(conn, 401, errors)
 
-      temporary_token ->
-        case validate_temporary_token(temporary_token) do
+      {:ok, token} ->
+        case get_member(project, token) do
           {:error, errors} ->
-            ResponseManager.send_resp(conn, 401, errors)
+            ResponseManager.send_resp(conn, 403, errors)
 
-          {:ok, _} ->
-            case get_member(project, temporary_token) do
-              {:error, errors} ->
-                ResponseManager.send_resp(conn, 403, errors)
+          {:ok, member} ->
+            with {:ok, _resource, access_token, refresh_token} <-
+                   Auth.create_tokens(Auth.format_member(member)) do
+              content =
+                Map.merge(Arke.StructManager.encode(member, type: :json), %{
+                  access_token: access_token,
+                  refresh_token: refresh_token
+                })
 
-              {:ok, member} ->
-                with {:ok, _resource, access_token, refresh_token} <-
-                       Auth.create_tokens(Auth.format_member(member)) do
-                  manage_reusability(project, temporary_token)
-
-                  content =
-                    Map.merge(Arke.StructManager.encode(member, type: :json), %{
-                      access_token: access_token,
-                      refresh_token: refresh_token
-                    })
-
-                  update_member_access_time(member)
-                  ResponseManager.send_resp(conn, 200, %{content: content})
-                else
-                  {:error, type} ->
-                    ResponseManager.send_resp(conn, 401, "Unauthorized")
-                end
+              update_member_access_time(member)
+              ResponseManager.send_resp(conn, 200, %{content: content})
+            else
+              {:error, _type} ->
+                ResponseManager.send_resp(conn, 401, "Unauthorized")
             end
         end
     end
   end
 
-  defp manage_reusability(project, %{data: %{is_reusable: false}} = token),
-    do: QueryManager.delete(project, token)
-
-  defp manage_reusability(_project, _token), do: nil
-
-  # A token is valid strictly before its expiry. arke_auth always sets one, so
-  # a token without it is treated as expired.
-  defp validate_temporary_token(%{data: %{expiration_datetime: %DateTime{} = expiry}} = token),
-    do: check_expiry(token, DateTime.compare(expiry, DateTime.utc_now()))
-
-  defp validate_temporary_token(
-         %{data: %{expiration_datetime: %NaiveDateTime{} = expiry}} = token
-       ),
-       do: check_expiry(token, NaiveDateTime.compare(expiry, NaiveDateTime.utc_now()))
-
-  defp validate_temporary_token(_token), do: Error.create(:auth, "token expired")
-
-  defp check_expiry(token, :gt), do: {:ok, token}
-  defp check_expiry(_token, _comparison), do: Error.create(:auth, "token expired")
+  defp get_member(_project, %{data: %{link_member: nil}}),
+    do: Error.create(:auth, "member not found")
 
   defp get_member(project, token) do
     case QueryManager.get_by(
@@ -333,8 +308,8 @@ defmodule ArkeServer.AuthController do
            group: :arke_auth_member,
            id: token.data.link_member
          ) do
+      nil -> Error.create(:auth, "member not found")
       member -> {:ok, member}
-      _ -> Error.create(:auth, "member not found")
     end
   end
 
