@@ -99,6 +99,19 @@ defmodule ArkeServer.GroupControllerTest do
       assert is_list(body_resp["content"]["parameters"]) == true
       assert length(body_resp["content"]["parameters"]) > 0
     end
+
+    test "struct - GET (error)" do
+      # atom below only to prevent error: not an already existing atom
+      :invalid_group
+
+      user = get_user()
+
+      conn =
+        build_authenticated_conn(user)
+        |> get("/lib/group/invalid_group/struct")
+
+      assert conn.status == 404
+    end
   end
 
   describe "/lib/group/:group_id/unit" do

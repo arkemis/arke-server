@@ -139,7 +139,7 @@ defmodule ArkeServer.AuthControllerTest do
       |> Plug.Conn.put_req_header("authorization", "Bearer #{old_refresh_token}")
       |> Plug.Conn.put_req_header("arke-project-key", "test_schema")
 
-    conn = post(conn, "/lib/auth/refresh")
+    conn = post(conn, "/lib/auth/refresh", refresh_token: old_refresh_token)
     body_resp = json_response(conn, 200)
     new_access_token = body_resp["content"]["access_token"]
     new_refresh_token = body_resp["content"]["refresh_token"]
@@ -237,6 +237,7 @@ defmodule ArkeServer.AuthControllerTest do
     test "error invalid token" do
       conn =
         build_conn()
+        |> Plug.Conn.put_req_header("arke-project-key", "test_schema")
         |> Plug.Conn.put_req_header("authorization", "Bearer INVALID TOKEN")
         |> post("/lib/auth/verify")
         |> json_response(401)
@@ -248,6 +249,7 @@ defmodule ArkeServer.AuthControllerTest do
     test "error missing auth header" do
       conn =
         build_conn()
+        |> Plug.Conn.put_req_header("arke-project-key", "test_schema")
         |> post("/lib/auth/verify")
         |> json_response(401)
 
