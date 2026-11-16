@@ -68,6 +68,7 @@ defmodule ArkeServer.UnitController do
           content:
             StructManager.encode(unit,
               load_links: load_links,
+              link_query: ArkeServer.Utils.LinkPermission.link_query(conn),
               load_values: load_values,
               type: :json
             )
