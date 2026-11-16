@@ -36,6 +36,7 @@ defmodule ArkeServer.TopologyController do
       items:
         StructManager.encode(units,
           load_links: load_links,
+          link_query: ArkeServer.Utils.LinkPermission.link_query(conn),
           load_values: load_values,
           load_files: load_files,
           type: :json
@@ -96,6 +97,7 @@ defmodule ArkeServer.TopologyController do
           201,
           StructManager.encode(unit,
             load_links: load_links,
+            link_query: ArkeServer.Utils.LinkPermission.link_query(conn),
             load_values: load_values,
             type: :json
           )
@@ -170,6 +172,7 @@ defmodule ArkeServer.TopologyController do
           content:
             StructManager.encode(unit,
               load_links: load_links,
+              link_query: ArkeServer.Utils.LinkPermission.link_query(conn),
               load_values: load_values,
               type: :json
             )
@@ -218,6 +221,7 @@ defmodule ArkeServer.TopologyController do
           content:
             StructManager.encode(unit,
               load_links: load_links,
+              link_query: ArkeServer.Utils.LinkPermission.link_query(conn),
               load_values: load_values,
               type: :json
             )

@@ -137,11 +137,13 @@ defmodule ArkeServer.Plugs.Permission do
     end
   end
 
-  defp get_permission_filter(_conn, %{filter: filter} = permission, _member)
-       when filter in [nil, ""],
-       do: {:ok, Map.put(permission, :filter, nil)}
+  @doc false
+  # Also used by ArkeServer.Utils.LinkPermission to filter `load_links`.
+  def get_permission_filter(_conn, %{filter: filter} = permission, _member)
+      when filter in [nil, ""],
+      do: {:ok, Map.put(permission, :filter, nil)}
 
-  defp get_permission_filter(conn, permission, member) do
+  def get_permission_filter(conn, permission, member) do
     filter = get_member_filter(permission.filter, member)
 
     case QueryFilters.get_from_string(conn, filter) do

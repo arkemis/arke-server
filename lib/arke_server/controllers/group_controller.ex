@@ -123,6 +123,7 @@ defmodule ArkeServer.GroupController do
       items:
         StructManager.encode(units,
           load_links: load_links,
+          link_query: ArkeServer.Utils.LinkPermission.link_query(conn),
           load_values: load_values,
           load_files: load_files,
           type: :json

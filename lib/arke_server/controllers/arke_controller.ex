@@ -45,6 +45,7 @@ defmodule ArkeServer.ArkeController do
       content:
         StructManager.encode(conn.assigns[:unit],
           load_links: load_links,
+          link_query: ArkeServer.Utils.LinkPermission.link_query(conn),
           load_values: load_values,
           load_files: load_files,
           type: :json
@@ -72,6 +73,7 @@ defmodule ArkeServer.ArkeController do
         content:
           StructManager.encode(unit,
             load_links: load_links,
+            link_query: ArkeServer.Utils.LinkPermission.link_query(conn),
             load_values: load_values,
             load_files: load_files,
             type: :json
@@ -118,6 +120,7 @@ defmodule ArkeServer.ArkeController do
       items:
         StructManager.encode(units,
           load_links: load_links,
+          link_query: ArkeServer.Utils.LinkPermission.link_query(conn),
           load_values: load_values,
           load_files: load_files,
           type: :json
