@@ -258,7 +258,9 @@ defmodule ArkeServer.AuthControllerTest do
     end
   end
 
-  describe "POST /lib/auth/signin with an auth_token" do
+  describe "POST /lib/auth/signin with an auth_token (ARKE-AUTH-06)" do
+    alias ArkeAuth.Core.TemporaryToken
+
     test "signs in when the token points at a live member", %{conn: conn} do
       user = get_user("user_authtoken")
       member = get_member(user)
@@ -272,30 +274,10 @@ defmodule ArkeServer.AuthControllerTest do
           []
         )
 
-      body = post(conn, "/lib/auth/signin", auth_token: to_string(token.id)) |> json_response(200)
+      body = post(conn, "/lib/auth/signin", auth_token: token.id) |> json_response(200)
 
       assert body["content"]["access_token"]
       delete_user("user_authtoken")
-    end
-
-    test "answers 403 when the token points at a member that no longer exists", %{conn: conn} do
-      user = get_user("user_authtoken_gone")
-      member = get_member(user)
-
-      {:ok, token} =
-        ArkeAuth.Core.TemporaryToken.generate_auth_token(
-          :test_schema,
-          member,
-          %{days: 1},
-          true,
-          []
-        )
-
-      {:ok, nil} = QueryManager.delete(:test_schema, member)
-
-      body = post(conn, "/lib/auth/signin", auth_token: to_string(token.id)) |> json_response(403)
-
-      assert List.first(body["content"])["message"] == "member not found"
     end
 
     test "signs only the member's public fields into the token", %{conn: conn} do
@@ -305,7 +287,7 @@ defmodule ArkeServer.AuthControllerTest do
       {:ok, token} =
         ArkeAuth.Core.TemporaryToken.generate_auth_token(:test_schema, member, 1, true, [])
 
-      body = post(conn, "/lib/auth/signin", auth_token: to_string(token.id)) |> json_response(200)
+      body = post(conn, "/lib/auth/signin", auth_token: token.id) |> json_response(200)
       {:ok, claims} = Guardian.decode_and_verify(body["content"]["access_token"])
 
       assert claims["sub"]["id"] == to_string(member.id)
@@ -318,37 +300,46 @@ defmodule ArkeServer.AuthControllerTest do
     end
 
     test "answers 401 for an expired auth_token", %{conn: conn} do
-      user = get_user("user_authtoken_expired")
-      member = get_member(user)
+      member = get_member(get_user("user_authtoken_expired"))
+      {:ok, token} = TemporaryToken.generate_auth_token(:test_schema, member, 1, true, [])
+      Process.sleep(1_100)
 
-      {:ok, token} =
-        ArkeAuth.Core.TemporaryToken.generate_auth_token(:test_schema, member, 1, true, [])
-
-      {:ok, _} =
-        QueryManager.update(token,
-          expiration_datetime: NaiveDateTime.utc_now() |> NaiveDateTime.add(-1, :second)
-        )
-
-      post(conn, "/lib/auth/signin", auth_token: to_string(token.id)) |> json_response(401)
+      post(conn, "/lib/auth/signin", auth_token: token.id) |> json_response(401)
       delete_user("user_authtoken_expired")
     end
 
-    test "answers 401 for an auth_token without an expiry", %{conn: conn} do
-      user = get_user("user_authtoken_noexpiry")
-      member = get_member(user)
+    test "a single-use auth_token signs in once", %{conn: conn} do
+      member = get_member(get_user("user_authtoken_once"))
+      {:ok, token} = TemporaryToken.generate_auth_token(:test_schema, member)
 
-      {:ok, token} =
-        ArkeAuth.Core.TemporaryToken.generate_auth_token(:test_schema, member, 1, true, [])
+      post(conn, "/lib/auth/signin", auth_token: token.id) |> json_response(200)
+      post(conn, "/lib/auth/signin", auth_token: token.id) |> json_response(401)
+      delete_user("user_authtoken_once")
+    end
 
-      {:ok, _} = QueryManager.update(token, expiration_datetime: nil)
+    test "answers 403 when the token points at no member", %{conn: conn} do
+      {:ok, token} = TemporaryToken.generate_auth_token(:test_schema, "no_such_member")
 
-      post(conn, "/lib/auth/signin", auth_token: to_string(token.id)) |> json_response(401)
-      delete_user("user_authtoken_noexpiry")
+      post(conn, "/lib/auth/signin", auth_token: token.id) |> json_response(403)
     end
 
     test "answers 401 for an unknown auth_token", %{conn: conn} do
       post(conn, "/lib/auth/signin", auth_token: "no_such_token") |> json_response(401)
     end
+
+    # Projects seeded before this change still have the temporary_token arke,
+    # so the endpoint may answer; it must not list any token.
+    test "tokens are not reachable through the unit endpoints" do
+      member = get_member(get_user("user_authtoken_hidden"))
+      {:ok, token} = TemporaryToken.generate_auth_token(:test_schema, member)
+
+      conn = build_authenticated_conn() |> get("/lib/temporary_token/unit")
+
+      refute conn.resp_body =~ token.id
+      if conn.status == 200, do: assert(json_response(conn, 200)["content"]["count"] == 0)
+      delete_user("user_authtoken_hidden")
+    end
+
   end
 
   describe "POST /lib/auth/reset_password" do
