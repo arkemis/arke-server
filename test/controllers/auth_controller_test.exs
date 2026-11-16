@@ -1,5 +1,6 @@
 defmodule ArkeServer.AuthControllerTest do
   use ArkeServer.ConnCase
+  use Mimic
 
   def create_user_setup(context) do
     get_user("user2")
@@ -343,32 +344,6 @@ defmodule ArkeServer.AuthControllerTest do
   end
 
   describe "POST /lib/auth/reset_password" do
-    test "updates the password and consumes the token", %{conn: conn} do
-      user = get_user("user_reset")
-
-      token_model = ArkeManager.get(:reset_password_token, :arke_system)
-
-      {:ok, token_unit} =
-        QueryManager.create(:arke_system, token_model, user_id: to_string(user.id))
-
-      post(conn, "/lib/auth/reset_password",
-        token: token_unit.data.token,
-        new_password: "changed_password"
-      )
-      |> json_response(200)
-
-      assert QueryManager.get_by(
-               project: :arke_system,
-               arke_id: :reset_password_token,
-               token: token_unit.data.token
-             ) == nil
-
-      post(conn, "/lib/auth/signin", username: "user_reset", password: "changed_password")
-      |> json_response(200)
-
-      delete_user("user_reset")
-    end
-
     test "answers 400 for an unknown token", %{conn: conn} do
       post(conn, "/lib/auth/reset_password", token: "no_such_token", new_password: "whatever")
       |> json_response(400)
@@ -464,6 +439,61 @@ defmodule ArkeServer.AuthControllerTest do
     test "reports the missing header instead when there is none" do
       assert %Plug.Conn{status: 401} =
                ArkeServer.ErrorHandlers.Auth.auth_error(build_conn(), {:unauthenticated, :r}, [])
+    end
+  end
+
+  describe "password reset link (default mode)" do
+    alias ArkeServer.Support.AuthMember
+
+    defp request_reset_token(conn, email) do
+      test_pid = self()
+
+      Mimic.expect(ArkeServer.TestMailer, :reset_password, fn _conn, _user, opts ->
+        send(test_pid, {:reset_endpoint, Keyword.fetch!(opts, :endpoint)})
+        {:ok, opts}
+      end)
+
+      post(conn, "/lib/auth/recover_password", email: email) |> json_response(200)
+      assert_received {:reset_endpoint, endpoint}
+      endpoint |> String.split("/") |> List.last()
+    end
+
+    defp reset(conn, token, password),
+      do: post(conn, "/lib/auth/reset_password", token: token, new_password: password)
+
+    test "the mailed token resets the password once", %{conn: conn} do
+      {user, _member} = AuthMember.create_user("reset_link")
+      token = request_reset_token(conn, user.data.email)
+
+      assert reset(conn, token, "brand_new_password").status == 200
+
+      assert {:ok, _, _, _} =
+               ArkeAuth.Core.Auth.validate_credentials(
+                 "reset_link",
+                 "brand_new_password",
+                 :test_schema
+               )
+
+      assert reset(conn, token, "another_password").status == 400
+    end
+
+    test "a tampered token answers 400", %{conn: conn} do
+      {user, _member} = AuthMember.create_user("reset_link_tampered")
+      token = request_reset_token(conn, user.data.email)
+
+      assert reset(conn, token <> "x", "brand_new_password").status == 400
+      assert reset(conn, "not.a-token", "brand_new_password").status == 400
+    end
+
+    test "an unknown email gets the same answer as a known one", %{conn: conn} do
+      {user, _member} = AuthMember.create_user("reset_link_known")
+      Mimic.stub(ArkeServer.TestMailer, :reset_password, fn _conn, _user, opts -> {:ok, opts} end)
+
+      known = post(conn, "/lib/auth/recover_password", email: user.data.email)
+      unknown = post(conn, "/lib/auth/recover_password", email: "nobody_reset@arke.test")
+
+      assert known.status == unknown.status
+      assert known.resp_body == unknown.resp_body
     end
   end
 end
