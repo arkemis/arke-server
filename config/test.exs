@@ -23,6 +23,9 @@ config :arke_auth, ArkeAuth.Guardian,
 config :arke_auth, ArkeAuth.Utils.TokenCrypto,
   token_key: "test-token-key-0123456789abcdef0123456789abcdef0123456789abcdef"
 
+config :arke_auth, ArkeAuth.Core.Password,
+  pepper: "test-password-pepper-0123456789abcdef0123456789abcdef0123456789"
+
 config :arke_server, ArkeServer.Endpoint,
   render_errors: [formats: [json: ArkeServer.ErrorJSON], layout: false]
 
