@@ -390,6 +390,48 @@ defmodule ArkeServer.AuthControllerTest do
     end
   end
 
+  describe "POST /lib/auth/signin with a member token" do
+    alias ArkeAuth.Core.MemberToken
+
+    test "signs in once", %{conn: conn} do
+      member = get_member(get_user("user_member_token"))
+      {:ok, token} = MemberToken.issue(:test_schema, member.id)
+
+      body = post(conn, "/lib/auth/signin", token: token) |> json_response(200)
+      assert body["content"]["access_token"]
+
+      post(conn, "/lib/auth/signin", token: token) |> json_response(401)
+      delete_user("user_member_token")
+    end
+
+    test "answers 401 for an expired token", %{conn: conn} do
+      member = get_member(get_user("user_member_token_expired"))
+      {:ok, token} = MemberToken.issue(:test_schema, member.id, 1)
+      Process.sleep(1_100)
+
+      post(conn, "/lib/auth/signin", token: token) |> json_response(401)
+      delete_user("user_member_token_expired")
+    end
+
+    # AuthMember's arke has the `inactive` parameter; super_admin's does not.
+    test "answers 401 for an inactive member", %{conn: conn} do
+      {_user, member} = ArkeServer.Support.AuthMember.create_user("user_member_token_inactive")
+      {:ok, member} = QueryManager.update(member, inactive: true)
+      assert member.data.inactive
+      {:ok, token} = MemberToken.issue(:test_schema, member.id)
+
+      post(conn, "/lib/auth/signin", token: token) |> json_response(401)
+    end
+
+    test "a value in the legacy auth_token field does not sign in", %{conn: conn} do
+      member = get_member(get_user("user_member_token_legacy"))
+      QueryManager.update(member, auth_token: "legacy_token_value")
+
+      post(conn, "/lib/auth/signin", token: "legacy_token_value") |> json_response(401)
+      delete_user("user_member_token_legacy")
+    end
+  end
+
   test "credentials are filtered out of the request logs (ARKE-AUTH-06)" do
     filtered =
       Phoenix.Logger.filter_values(%{

@@ -23,7 +23,7 @@ defmodule ArkeServer.AuthController do
   use ArkeServer.Openapi.Spec, module: ArkeServer.Openapi.AuthControllerSpec
 
   alias ArkeServer.ResponseManager
-  alias ArkeAuth.Core.{User, Auth, Otp, TemporaryToken}
+  alias ArkeAuth.Core.{User, Auth, Otp, TemporaryToken, MemberToken}
   alias Arke.Boundary.ArkeManager
   alias ArkeAuth.Boundary.OtpManager
   alias Arke.QueryManager
@@ -246,25 +246,22 @@ defmodule ArkeServer.AuthController do
   def signin(conn, %{"token" => token} = _params) do
     project = get_project(conn.assigns[:arke_project])
 
-    case QueryManager.get_by(project: project, group: :arke_auth_member, auth_token: token) do
-      nil ->
-        ResponseManager.send_resp(conn, 401, "Unauthorized")
+    with {:ok, member_id} <- MemberToken.consume(project, token),
+         %Arke.Core.Unit{} = member <-
+           QueryManager.get_by(project: project, group: :arke_auth_member, id: member_id),
+         {:ok, member} <- ArkeAuth.Guardian.check_member(member),
+         {:ok, _resource, access_token, refresh_token} <-
+           Auth.create_tokens(Auth.format_member(member)) do
+      content =
+        Map.merge(Arke.StructManager.encode(member, type: :json), %{
+          access_token: access_token,
+          refresh_token: refresh_token
+        })
 
-      member ->
-        with {:ok, _resource, access_token, refresh_token} <-
-               Auth.create_tokens(Auth.format_member(member)) do
-          content =
-            Map.merge(Arke.StructManager.encode(member, type: :json), %{
-              access_token: access_token,
-              refresh_token: refresh_token
-            })
-
-          update_member_access_time(member, auth_token: nil)
-          ResponseManager.send_resp(conn, 200, %{content: content})
-        else
-          {:error, _type} ->
-            ResponseManager.send_resp(conn, 401, "Unauthorized")
-        end
+      update_member_access_time(member)
+      ResponseManager.send_resp(conn, 200, %{content: content})
+    else
+      _ -> ResponseManager.send_resp(conn, 401, "Unauthorized")
     end
   end
 
