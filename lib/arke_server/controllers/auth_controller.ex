@@ -140,6 +140,9 @@ defmodule ArkeServer.AuthController do
 
         ResponseManager.send_resp(conn, 200, %{content: "OTP send successfully"})
 
+      {:error, [%{message: "otp resend too soon"}]} = error ->
+        send_error(conn, 429, error)
+
       {:error, errors} ->
         ResponseManager.send_resp(conn, 401, nil, errors)
     end
@@ -406,6 +409,9 @@ defmodule ArkeServer.AuthController do
 
               ResponseManager.send_resp(conn, 200, data, "OTP send successfully")
 
+            {:error, [%{message: "otp resend too soon"}]} = error ->
+              send_error(conn, 429, error)
+
             {:error, errors} ->
               ResponseManager.send_resp(conn, 401, nil, errors)
           end
@@ -629,6 +635,11 @@ defmodule ArkeServer.AuthController do
             )
         end
 
+        ResponseManager.send_resp(conn, 200, %{content: "OTP send successfully"})
+
+      # Same answer as for an unknown email: a 429 here would tell that the
+      # account exists.
+      {:error, [%{message: "otp resend too soon"}]} ->
         ResponseManager.send_resp(conn, 200, %{content: "OTP send successfully"})
 
       {:error, errors} ->
