@@ -205,7 +205,7 @@ defmodule ArkeServer.Utils.QueryFilters do
 
   defp fetch_parameter(parameter_id, project) do
     case Arke.Boundary.ParameterManager.get(parameter_id, project) do
-      {:error, msg} -> {:error, msg}
+      nil -> Error.create(:filter, "parameter `#{parameter_id}` not found")
       parameter -> {:ok, parameter}
     end
   end

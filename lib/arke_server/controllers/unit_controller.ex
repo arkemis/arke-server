@@ -40,7 +40,7 @@ defmodule ArkeServer.UnitController do
     {count, units} =
       QueryManager.query(project: project)
       |> QueryFilters.apply_query_filters(Map.get(conn.assigns, :filter))
-      |> QueryProcessor.process_query(%{conn.query_params | "limit" => limit})
+      |> QueryProcessor.process_query(Map.put(conn.query_params, "limit", limit))
 
     ResponseManager.send_resp(conn, 200, %{
       count: count,
