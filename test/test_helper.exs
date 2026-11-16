@@ -3,6 +3,7 @@ ExUnit.start()
 Mimic.copy(Req)
 Mimic.copy(Arke.Utils.DatetimeHandler)
 Mimic.copy(ArkeAuth.Utils.Permission)
+Mimic.copy(ArkeServer.TestMailer)
 
 ArkePostgres.init()
 
