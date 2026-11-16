@@ -104,8 +104,7 @@ defmodule ArkeServer.AuthOtpTest do
 
     test "a numeric JSON code is accepted", %{conn: conn} do
       {_user, member} = AuthMember.create_user("otp_signin_int")
-      {:ok, otp} = Otp.generate(:test_schema, member.id, "signin")
-      {:ok, _} = QueryManager.update(otp, code: "042817")
+      {:ok, _otp} = Otp.put_code(:test_schema, member.id, "signin", "042817", nil)
 
       assert signin(conn, "otp_signin_int", 42817).status == 200
     end
