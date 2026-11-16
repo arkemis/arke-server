@@ -28,7 +28,6 @@ defmodule ArkeServer.AuthController do
   alias ArkeAuth.Boundary.OtpManager
   alias Arke.QueryManager
   alias Arke.Utils.ErrorGenerator, as: Error
-  alias Arke.Utils.DatetimeHandler
 
   def mailer_module(), do: Application.get_env(:arke_server, :mailer_module)
 
@@ -647,32 +646,16 @@ defmodule ArkeServer.AuthController do
         ResponseManager.send_resp(conn, 200, default_msg)
 
       user ->
-        old_token_list =
-          QueryManager.filter_by(
-            project: :arke_system,
-            arke_id: :reset_password_token,
-            user_id: user.id
-          )
+        {:ok, token_data} = ArkeAuth.ResetPasswordToken.issue(user)
+        endpoint = "#{System.get_env("RESET_PASSWORD_ENDPOINT", "")}/#{token_data.token}"
 
-        Enum.each(old_token_list, fn unit -> QueryManager.delete(:arke_system, unit) end)
-        token_model = ArkeManager.get(:reset_password_token, :arke_system)
+        mailer_module().reset_password(conn, user,
+          mode: "email",
+          unit: %{data: token_data},
+          endpoint: endpoint
+        )
 
-        case QueryManager.create(:arke_system, token_model, %{user_id: to_string(user.id)}) do
-          {:error, _error} ->
-            ResponseManager.send_resp(conn, 200, default_msg)
-
-          {:ok, unit} ->
-            url_token = unit.data.token
-            endpoint = "#{System.get_env("RESET_PASSWORD_ENDPOINT", "")}/#{url_token}"
-
-            mailer_module().reset_password(conn, user,
-              mode: "email",
-              unit: unit,
-              endpoint: endpoint
-            )
-
-            ResponseManager.send_resp(conn, 200, default_msg)
-        end
+        ResponseManager.send_resp(conn, 200, default_msg)
     end
   end
 
@@ -692,25 +675,10 @@ defmodule ArkeServer.AuthController do
          _member,
          "default"
        ) do
-    with %Arke.Core.Unit{} = token_unit <-
-           QueryManager.get_by(
-             arke_id: :reset_password_token,
-             token: token,
-             project: :arke_system
-           ),
-         {:ok, token_unit} <- check_token_expiration(token_unit),
-         %Arke.Core.Unit{} = user <-
-           QueryManager.get_by(id: token_unit.data.user_id, project: :arke_system),
+    with {:ok, user} <- ArkeAuth.ResetPasswordToken.verify(token),
          {:ok, _updated_user} <- User.update_password(user, new_password) do
-      QueryManager.delete(:arke_system, token_unit)
       ResponseManager.send_resp(conn, 200, nil)
     else
-      nil ->
-        ResponseManager.send_resp(conn, 400, nil, %{
-          context: :auth,
-          message: "invalid token"
-        })
-
       {:error, msg} ->
         ResponseManager.send_resp(conn, 400, nil, msg)
     end
@@ -753,17 +721,6 @@ defmodule ArkeServer.AuthController do
 
   defp get_project(project) when is_nil(project), do: :arke_system
   defp get_project(project), do: project
-
-  defp check_token_expiration(%Arke.Core.Unit{} = token) do
-    with {:ok, value} <- DatetimeHandler.parse_datetime(token.data.expiration),
-         true <- DatetimeHandler.after?(value, DatetimeHandler.now(:datetime)) do
-      {:ok, token}
-    else
-      _ -> Error.create(:auth, "expired token")
-    end
-  end
-
-  defp check_token_expiration(_token), do: Error.create(:auth, "invalid token")
 
   defp send_otp_error(conn, {:error, [%{message: "otp expired"}]} = error),
     do: send_error(conn, 410, error)
