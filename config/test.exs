@@ -22,6 +22,9 @@ config :arke_auth, ArkeAuth.Guardian,
   verify_issuer: true,
   token_ttl: %{"access" => {7, :days}, "refresh" => {30, :days}}
 
+config :arke_auth, ArkeAuth.Utils.TokenCrypto,
+  token_key: "test-token-key-0123456789abcdef0123456789abcdef0123456789abcdef"
+
 config :arke_server, ArkeServer.Endpoint,
   render_errors: [formats: [json: ArkeServer.ErrorJSON], layout: false]
 
