@@ -66,19 +66,24 @@ defmodule ArkeServer.GroupController do
   # get the group struct
   def struct(conn, %{"group_id" => group_id}) do
     project = conn.assigns[:arke_project]
-    arke = ArkeManager.get(:arke, :arke_system)
-    group = GroupManager.get(String.to_existing_atom(group_id), project)
-    parameters = GroupManager.get_parameters(group)
 
-    tmp_arke =
-      Unit.load(arke,
-        label: group.data.label,
-        parameters: parameters,
-        metadata: %{project: project}
-      )
+    case GroupManager.get(String.to_existing_atom(group_id), project) do
+      nil ->
+        ResponseManager.send_resp(conn, 404, nil)
 
-    struct = StructManager.get_struct(tmp_arke, conn.query_params)
-    ResponseManager.send_resp(conn, 200, %{content: struct})
+      group ->
+        arke = ArkeManager.get(:arke, :arke_system)
+
+        tmp_arke =
+          Unit.load(arke,
+            label: group.data.label,
+            parameters: GroupManager.get_parameters(group),
+            metadata: %{project: project}
+          )
+
+        struct = StructManager.get_struct(tmp_arke, conn.query_params)
+        ResponseManager.send_resp(conn, 200, %{content: struct})
+    end
   end
 
   ## get all the arke in the given group
@@ -86,7 +91,7 @@ defmodule ArkeServer.GroupController do
     project = conn.assigns[:arke_project]
 
     case GroupManager.get(String.to_existing_atom(group_id), project) do
-      {:error, msg} ->
+      nil ->
         ResponseManager.send_resp(conn, 404, nil)
 
       group ->

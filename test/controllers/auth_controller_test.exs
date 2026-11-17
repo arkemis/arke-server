@@ -1,5 +1,6 @@
 defmodule ArkeServer.AuthControllerTest do
   use ArkeServer.ConnCase
+  use Mimic
 
   def create_user_setup(context) do
     get_user("user2")
@@ -139,7 +140,7 @@ defmodule ArkeServer.AuthControllerTest do
       |> Plug.Conn.put_req_header("authorization", "Bearer #{old_refresh_token}")
       |> Plug.Conn.put_req_header("arke-project-key", "test_schema")
 
-    conn = post(conn, "/lib/auth/refresh")
+    conn = post(conn, "/lib/auth/refresh", refresh_token: old_refresh_token)
     body_resp = json_response(conn, 200)
     new_access_token = body_resp["content"]["access_token"]
     new_refresh_token = body_resp["content"]["refresh_token"]
@@ -237,6 +238,7 @@ defmodule ArkeServer.AuthControllerTest do
     test "error invalid token" do
       conn =
         build_conn()
+        |> Plug.Conn.put_req_header("arke-project-key", "test_schema")
         |> Plug.Conn.put_req_header("authorization", "Bearer INVALID TOKEN")
         |> post("/lib/auth/verify")
         |> json_response(401)
@@ -248,6 +250,7 @@ defmodule ArkeServer.AuthControllerTest do
     test "error missing auth header" do
       conn =
         build_conn()
+        |> Plug.Conn.put_req_header("arke-project-key", "test_schema")
         |> post("/lib/auth/verify")
         |> json_response(401)
 
@@ -257,33 +260,99 @@ defmodule ArkeServer.AuthControllerTest do
   end
 
   describe "POST /lib/auth/signin with an auth_token (ARKE-AUTH-06)" do
+    alias ArkeAuth.Core.TemporaryToken
+
     test "answers 401 for an expired auth_token", %{conn: conn} do
-      user = get_user("user_authtoken_expired")
-      member = get_member(user)
+      member = get_member(get_user("user_authtoken_expired"))
+      {:ok, token} = TemporaryToken.generate_auth_token(:test_schema, member, 1, true, [])
+      Process.sleep(1_100)
 
-      {:ok, token} =
-        ArkeAuth.Core.TemporaryToken.generate_auth_token(:test_schema, member, 1, true, [])
-
-      {:ok, _} =
-        QueryManager.update(token,
-          expiration_datetime: NaiveDateTime.utc_now() |> NaiveDateTime.add(-1, :second)
-        )
-
-      post(conn, "/lib/auth/signin", auth_token: to_string(token.id)) |> json_response(401)
+      post(conn, "/lib/auth/signin", auth_token: token.id) |> json_response(401)
       delete_user("user_authtoken_expired")
     end
 
-    test "answers 401 for an auth_token without an expiry", %{conn: conn} do
-      user = get_user("user_authtoken_noexpiry")
-      member = get_member(user)
+    test "a single-use auth_token signs in once", %{conn: conn} do
+      member = get_member(get_user("user_authtoken_once"))
+      {:ok, token} = TemporaryToken.generate_auth_token(:test_schema, member)
 
-      {:ok, token} =
-        ArkeAuth.Core.TemporaryToken.generate_auth_token(:test_schema, member, 1, true, [])
+      post(conn, "/lib/auth/signin", auth_token: token.id) |> json_response(200)
+      post(conn, "/lib/auth/signin", auth_token: token.id) |> json_response(401)
+      delete_user("user_authtoken_once")
+    end
 
-      {:ok, _} = QueryManager.update(token, expiration_datetime: nil)
+    test "answers 403 when the token points at no member", %{conn: conn} do
+      {:ok, token} = TemporaryToken.generate_auth_token(:test_schema, "no_such_member")
 
-      post(conn, "/lib/auth/signin", auth_token: to_string(token.id)) |> json_response(401)
-      delete_user("user_authtoken_noexpiry")
+      post(conn, "/lib/auth/signin", auth_token: token.id) |> json_response(403)
+    end
+
+    test "answers 401 for an unknown auth_token", %{conn: conn} do
+      post(conn, "/lib/auth/signin", auth_token: "no_such_token") |> json_response(401)
+    end
+  end
+
+  describe "POST /lib/auth/signin with a token" do
+    alias ArkeAuth.Core.TemporaryToken
+
+    test "signs in once", %{conn: conn} do
+      member = get_member(get_user("user_member_token"))
+      {:ok, %{id: token}} = TemporaryToken.generate_auth_token(:test_schema, member)
+
+      body = post(conn, "/lib/auth/signin", token: token) |> json_response(200)
+      assert body["content"]["access_token"]
+
+      post(conn, "/lib/auth/signin", token: token) |> json_response(401)
+      delete_user("user_member_token")
+    end
+
+    test "answers 401 for an expired token", %{conn: conn} do
+      member = get_member(get_user("user_member_token_expired"))
+      {:ok, %{id: token}} = TemporaryToken.generate_auth_token(:test_schema, member, 1)
+      Process.sleep(1_100)
+
+      post(conn, "/lib/auth/signin", token: token) |> json_response(401)
+      delete_user("user_member_token_expired")
+    end
+
+    # AuthMember's arke has the `inactive` parameter; super_admin's does not.
+    test "answers 401 for an inactive member", %{conn: conn} do
+      {_user, member} = ArkeServer.Support.AuthMember.create_user("user_member_token_inactive")
+      {:ok, member} = QueryManager.update(member, inactive: true)
+      assert member.data.inactive
+      {:ok, %{id: token}} = TemporaryToken.generate_auth_token(:test_schema, member)
+
+      post(conn, "/lib/auth/signin", token: token) |> json_response(401)
+    end
+
+    test "token and auth_token are the same single-use token", %{conn: conn} do
+      member = get_member(get_user("user_token_alias"))
+      {:ok, %{id: token}} = TemporaryToken.generate_auth_token(:test_schema, member)
+
+      post(conn, "/lib/auth/signin", token: token) |> json_response(200)
+      post(conn, "/lib/auth/signin", auth_token: token) |> json_response(401)
+      delete_user("user_token_alias")
+    end
+
+    test "auth_token refuses an inactive member", %{conn: conn} do
+      {_user, member} = ArkeServer.Support.AuthMember.create_user("user_auth_token_inactive")
+      {:ok, member} = QueryManager.update(member, inactive: true)
+      {:ok, %{id: token}} = TemporaryToken.generate_auth_token(:test_schema, member)
+
+      post(conn, "/lib/auth/signin", auth_token: token) |> json_response(401)
+    end
+
+    test "answers 403 when the token points at no member", %{conn: conn} do
+      {:ok, %{id: token}} = TemporaryToken.generate_auth_token(:test_schema, "no_such_member")
+
+      post(conn, "/lib/auth/signin", token: token) |> json_response(403)
+    end
+
+    test "a value in the legacy auth_token field does not sign in", %{conn: conn} do
+      member = get_member(get_user("user_member_token_legacy"))
+      QueryManager.update(member, auth_token: "legacy_token_value")
+
+      post(conn, "/lib/auth/signin", token: "legacy_token_value") |> json_response(401)
+      delete_user("user_member_token_legacy")
     end
   end
 
@@ -315,6 +384,61 @@ defmodule ArkeServer.AuthControllerTest do
     end
   end
 
+  describe "password reset link (default mode)" do
+    alias ArkeServer.Support.AuthMember
+
+    defp request_reset_token(conn, email) do
+      test_pid = self()
+
+      Mimic.expect(ArkeServer.TestMailer, :reset_password, fn _conn, _user, opts ->
+        send(test_pid, {:reset_endpoint, Keyword.fetch!(opts, :endpoint)})
+        {:ok, opts}
+      end)
+
+      post(conn, "/lib/auth/recover_password", email: email) |> json_response(200)
+      assert_received {:reset_endpoint, endpoint}
+      endpoint |> String.split("/") |> List.last()
+    end
+
+    defp reset(conn, token, password),
+      do: post(conn, "/lib/auth/reset_password", token: token, new_password: password)
+
+    test "the mailed token resets the password once", %{conn: conn} do
+      {user, _member} = AuthMember.create_user("reset_link")
+      token = request_reset_token(conn, user.data.email)
+
+      assert reset(conn, token, "brand_new_password").status == 200
+
+      assert {:ok, _, _, _} =
+               ArkeAuth.Core.Auth.validate_credentials(
+                 "reset_link",
+                 "brand_new_password",
+                 :test_schema
+               )
+
+      assert reset(conn, token, "another_password").status == 400
+    end
+
+    test "a tampered token answers 400", %{conn: conn} do
+      {user, _member} = AuthMember.create_user("reset_link_tampered")
+      token = request_reset_token(conn, user.data.email)
+
+      assert reset(conn, token <> "x", "brand_new_password").status == 400
+      assert reset(conn, "not.a-token", "brand_new_password").status == 400
+    end
+
+    test "an unknown email gets the same answer as a known one", %{conn: conn} do
+      {user, _member} = AuthMember.create_user("reset_link_known")
+      Mimic.stub(ArkeServer.TestMailer, :reset_password, fn _conn, _user, opts -> {:ok, opts} end)
+
+      known = post(conn, "/lib/auth/recover_password", email: user.data.email)
+      unknown = post(conn, "/lib/auth/recover_password", email: "nobody_reset@arke.test")
+
+      assert known.status == unknown.status
+      assert known.resp_body == unknown.resp_body
+    end
+  end
+
   describe "POST /lib/auth/reset_password without the required params" do
     test "answers 400 instead of crashing", %{conn: conn} do
       post(conn, "/lib/auth/reset_password", new_password: "whatever") |> json_response(400)
@@ -329,7 +453,7 @@ defmodule ArkeServer.AuthControllerTest do
       {:ok, token} =
         ArkeAuth.Core.TemporaryToken.generate_auth_token(:test_schema, member, 1, true, [])
 
-      body = post(conn, "/lib/auth/signin", auth_token: to_string(token.id)) |> json_response(200)
+      body = post(conn, "/lib/auth/signin", auth_token: token.id) |> json_response(200)
       {:ok, claims} = Guardian.decode_and_verify(body["content"]["access_token"])
 
       assert claims["sub"]["id"] == to_string(member.id)

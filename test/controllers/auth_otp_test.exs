@@ -4,6 +4,7 @@ defmodule ArkeServer.AuthOtpTest do
   the environment on every request, so the tests set them and run serially.
   """
   use ArkeServer.ConnCase, async: false
+  use Mimic
 
   alias ArkeServer.Support.AuthMember
 
@@ -104,8 +105,7 @@ defmodule ArkeServer.AuthOtpTest do
 
     test "a numeric JSON code is accepted", %{conn: conn} do
       {_user, member} = AuthMember.create_user("otp_signin_int")
-      {:ok, otp} = Otp.generate(:test_schema, member.id, "signin")
-      {:ok, _} = QueryManager.update(otp, code: "042817")
+      {:ok, _otp} = Otp.put_code(:test_schema, member.id, "signin", "042817", nil)
 
       assert signin(conn, "otp_signin_int", 42817).status == 200
     end
@@ -130,6 +130,7 @@ defmodule ArkeServer.AuthOtpTest do
     end
 
     test "the reset password code is checked the same way", %{conn: conn} do
+      put_otp_config(resend_cooldown_seconds: 0)
       {user, member} = AuthMember.create_user("otp_reset")
       {:ok, otp} = Otp.generate(:test_schema, member.id, "reset_password")
 
@@ -157,6 +158,7 @@ defmodule ArkeServer.AuthOtpTest do
     end
 
     test "the signup code is checked the same way", %{conn: conn} do
+      put_otp_config(resend_cooldown_seconds: 0)
       username = "otp_signup@arke.test"
       {:ok, otp} = Otp.generate(:test_schema, username, "signup")
 
@@ -176,6 +178,34 @@ defmodule ArkeServer.AuthOtpTest do
 
       {:ok, otp} = Otp.generate(:test_schema, username, "signup")
       assert signup.(otp.data.code) |> json_response(200)
+    end
+  end
+
+  describe "resend cooldown" do
+    test "a second signin code within the cooldown answers 429", %{conn: conn} do
+      put_otp_config(resend_cooldown_seconds: 30)
+      AuthMember.create_user("otp_cooldown_signin")
+
+      assert signin(conn, "otp_cooldown_signin", nil).status == 200
+      assert signin(conn, "otp_cooldown_signin", nil).status == 429
+    end
+
+    test "recover_password within the cooldown answers as for an unknown email and sends nothing",
+         %{conn: conn} do
+      put_otp_config(resend_cooldown_seconds: 30)
+      {user, _member} = AuthMember.create_user("otp_cooldown_recover")
+
+      Mimic.expect(ArkeServer.TestMailer, :reset_password, 1, fn _conn, _member, opts ->
+        {:ok, opts}
+      end)
+
+      first = post(conn, "/lib/auth/recover_password", %{email: user.data.email, otp: nil})
+      second = post(conn, "/lib/auth/recover_password", %{email: user.data.email, otp: nil})
+      unknown = post(conn, "/lib/auth/recover_password", %{email: "nobody@arke.test", otp: nil})
+
+      assert first.status == 200
+      assert second.status == 200
+      assert second.resp_body == unknown.resp_body
     end
   end
 
@@ -199,5 +229,17 @@ defmodule ArkeServer.AuthOtpTest do
       })
       |> json_response(401)
     end
+  end
+
+  defp put_otp_config(config) do
+    previous = Application.get_env(:arke_auth, ArkeAuth.Otp)
+
+    on_exit(fn ->
+      if previous,
+        do: Application.put_env(:arke_auth, ArkeAuth.Otp, previous),
+        else: Application.delete_env(:arke_auth, ArkeAuth.Otp)
+    end)
+
+    Application.put_env(:arke_auth, ArkeAuth.Otp, config)
   end
 end

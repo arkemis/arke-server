@@ -23,12 +23,11 @@ defmodule ArkeServer.AuthController do
   use ArkeServer.Openapi.Spec, module: ArkeServer.Openapi.AuthControllerSpec
 
   alias ArkeServer.ResponseManager
-  alias ArkeAuth.Core.{User, Auth, Otp}
+  alias ArkeAuth.Core.{User, Auth, Otp, TemporaryToken}
   alias Arke.Boundary.ArkeManager
   alias ArkeAuth.Boundary.OtpManager
   alias Arke.QueryManager
   alias Arke.Utils.ErrorGenerator, as: Error
-  alias Arke.Utils.DatetimeHandler
 
   def mailer_module(), do: Application.get_env(:arke_server, :mailer_module)
 
@@ -140,6 +139,9 @@ defmodule ArkeServer.AuthController do
 
         ResponseManager.send_resp(conn, 200, %{content: "OTP send successfully"})
 
+      {:error, [%{message: "otp resend too soon"}]} = error ->
+        send_error(conn, 429, error)
+
       {:error, errors} ->
         ResponseManager.send_resp(conn, 401, nil, errors)
     end
@@ -240,102 +242,11 @@ defmodule ArkeServer.AuthController do
   #### GET ######
 
   # TODO improve it in arke_auth
-  def signin(conn, %{"token" => token} = params) do
-    project = get_project(conn.assigns[:arke_project])
+  # A sign-in link carries a TemporaryToken as `token` or `auth_token`; both
+  # go through the same checks.
+  def signin(conn, %{"token" => token}), do: signin_with_link(conn, token)
+  def signin(conn, %{"auth_token" => token}), do: signin_with_link(conn, token)
 
-    case QueryManager.get_by(project: project, group: :arke_auth_member, auth_token: token) do
-      nil ->
-        ResponseManager.send_resp(conn, 401, "Unauthorized")
-
-      member ->
-        with {:ok, _resource, access_token, refresh_token} <-
-               Auth.create_tokens(Auth.format_member(member)) do
-          content =
-            Map.merge(Arke.StructManager.encode(member, type: :json), %{
-              access_token: access_token,
-              refresh_token: refresh_token
-            })
-
-          update_member_access_time(member, auth_token: nil)
-          ResponseManager.send_resp(conn, 200, %{content: content})
-        else
-          {:error, type} ->
-            ResponseManager.send_resp(conn, 401, "Unauthorized")
-        end
-    end
-  end
-
-  def signin(conn, %{"auth_token" => auth_token} = params) do
-    project = get_project(conn.assigns[:arke_project])
-
-    case QueryManager.get_by(project: project, arke_id: :temporary_token, id: auth_token) do
-      nil ->
-        ResponseManager.send_resp(conn, 401, "Unauthorized")
-
-      temporary_token ->
-        case validate_temporary_token(temporary_token) do
-          {:error, errors} ->
-            ResponseManager.send_resp(conn, 401, errors)
-
-          {:ok, _} ->
-            case get_member(project, temporary_token) do
-              {:error, errors} ->
-                ResponseManager.send_resp(conn, 403, errors)
-
-              {:ok, member} ->
-                with {:ok, _resource, access_token, refresh_token} <-
-                       Auth.create_tokens(Auth.format_member(member)) do
-                  manage_reusability(project, temporary_token)
-
-                  content =
-                    Map.merge(Arke.StructManager.encode(member, type: :json), %{
-                      access_token: access_token,
-                      refresh_token: refresh_token
-                    })
-
-                  update_member_access_time(member)
-                  ResponseManager.send_resp(conn, 200, %{content: content})
-                else
-                  {:error, type} ->
-                    ResponseManager.send_resp(conn, 401, "Unauthorized")
-                end
-            end
-        end
-    end
-  end
-
-  defp manage_reusability(project, %{data: %{is_reusable: false}} = token),
-    do: QueryManager.delete(project, token)
-
-  defp manage_reusability(_project, _token), do: nil
-
-  # A token is valid strictly before its expiry. arke_auth always sets one, so
-  # a token without it is treated as expired.
-  defp validate_temporary_token(%{data: %{expiration_datetime: %DateTime{} = expiry}} = token),
-    do: check_expiry(token, DateTime.compare(expiry, DateTime.utc_now()))
-
-  defp validate_temporary_token(
-         %{data: %{expiration_datetime: %NaiveDateTime{} = expiry}} = token
-       ),
-       do: check_expiry(token, NaiveDateTime.compare(expiry, NaiveDateTime.utc_now()))
-
-  defp validate_temporary_token(_token), do: Error.create(:auth, "token expired")
-
-  defp check_expiry(token, :gt), do: {:ok, token}
-  defp check_expiry(_token, _comparison), do: Error.create(:auth, "token expired")
-
-  defp get_member(project, token) do
-    case QueryManager.get_by(
-           project: project,
-           group: :arke_auth_member,
-           id: token.data.link_member
-         ) do
-      member -> {:ok, member}
-      _ -> Error.create(:auth, "member not found")
-    end
-  end
-
-  #### POST ######
   def signin(conn, %{"username" => username, "password" => password} = params) do
     project = get_project(conn.assigns[:arke_project])
     auth_mode = System.get_env("AUTH_MODE", "default")
@@ -351,6 +262,55 @@ defmodule ArkeServer.AuthController do
   end
 
   def signin(conn, _params), do: ResponseManager.send_resp(conn, 404, nil)
+
+  defp signin_with_link(conn, token) do
+    project = get_project(conn.assigns[:arke_project])
+
+    with {:ok, token} <- TemporaryToken.consume(project, token),
+         {:ok, member} <- get_member(project, token),
+         {:ok, member} <- check_member(member),
+         {:ok, _resource, access_token, refresh_token} <-
+           Auth.create_tokens(Auth.format_member(member)) do
+      content =
+        Map.merge(Arke.StructManager.encode(member, type: :json), %{
+          access_token: access_token,
+          refresh_token: refresh_token
+        })
+
+      update_member_access_time(member)
+      ResponseManager.send_resp(conn, 200, %{content: content})
+    else
+      {:error, :member_not_found, errors} -> ResponseManager.send_resp(conn, 403, errors)
+      {:error, errors} when is_list(errors) -> ResponseManager.send_resp(conn, 401, errors)
+      _ -> ResponseManager.send_resp(conn, 401, "Unauthorized")
+    end
+  end
+
+  defp get_member(_project, %{data: %{link_member: nil}}), do: member_not_found()
+
+  defp get_member(project, token) do
+    case QueryManager.get_by(
+           project: project,
+           group: :arke_auth_member,
+           id: token.data.link_member
+         ) do
+      nil -> member_not_found()
+      member -> {:ok, member}
+    end
+  end
+
+  defp member_not_found() do
+    {:error, errors} = Error.create(:auth, "member not found")
+    {:error, :member_not_found, errors}
+  end
+
+  # An inactive member is refused, as with username and password.
+  defp check_member(member) do
+    case ArkeAuth.Guardian.check_member(member) do
+      {:ok, member} -> {:ok, member}
+      _ -> :unauthorized
+    end
+  end
 
   defp handle_signin_mode(
          conn,
@@ -405,6 +365,9 @@ defmodule ArkeServer.AuthController do
               end
 
               ResponseManager.send_resp(conn, 200, data, "OTP send successfully")
+
+            {:error, [%{message: "otp resend too soon"}]} = error ->
+              send_error(conn, 429, error)
 
             {:error, errors} ->
               ResponseManager.send_resp(conn, 401, nil, errors)
@@ -631,6 +594,11 @@ defmodule ArkeServer.AuthController do
 
         ResponseManager.send_resp(conn, 200, %{content: "OTP send successfully"})
 
+      # Same answer as for an unknown email: a 429 here would tell that the
+      # account exists.
+      {:error, [%{message: "otp resend too soon"}]} ->
+        ResponseManager.send_resp(conn, 200, %{content: "OTP send successfully"})
+
       {:error, errors} ->
         ResponseManager.send_resp(conn, 401, nil, errors)
     end
@@ -664,32 +632,16 @@ defmodule ArkeServer.AuthController do
         ResponseManager.send_resp(conn, 200, default_msg)
 
       user ->
-        old_token_list =
-          QueryManager.filter_by(
-            project: :arke_system,
-            arke_id: :reset_password_token,
-            user_id: user.id
-          )
+        {:ok, token_data} = ArkeAuth.ResetPasswordToken.issue(user)
+        endpoint = "#{System.get_env("RESET_PASSWORD_ENDPOINT", "")}/#{token_data.token}"
 
-        Enum.each(old_token_list, fn unit -> QueryManager.delete(:arke_system, unit) end)
-        token_model = ArkeManager.get(:reset_password_token, :arke_system)
+        mailer_module().reset_password(conn, user,
+          mode: "email",
+          unit: %{data: token_data},
+          endpoint: endpoint
+        )
 
-        case QueryManager.create(:arke_system, token_model, %{user_id: to_string(user.id)}) do
-          {:error, _error} ->
-            ResponseManager.send_resp(conn, 200, default_msg)
-
-          {:ok, unit} ->
-            url_token = unit.data.token
-            endpoint = "#{System.get_env("RESET_PASSWORD_ENDPOINT", "")}/#{url_token}"
-
-            mailer_module().reset_password(conn, user,
-              mode: "email",
-              unit: unit,
-              endpoint: endpoint
-            )
-
-            ResponseManager.send_resp(conn, 200, default_msg)
-        end
+        ResponseManager.send_resp(conn, 200, default_msg)
     end
   end
 
@@ -709,25 +661,10 @@ defmodule ArkeServer.AuthController do
          _member,
          "default"
        ) do
-    with %Arke.Core.Unit{} = token_unit <-
-           QueryManager.get_by(
-             arke_id: :reset_password_token,
-             token: token,
-             project: :arke_system
-           ),
-         {:ok, token_unit} <- check_token_expiration(token_unit),
-         %Arke.Core.Unit{} = user <-
-           QueryManager.get_by(id: token_unit.data.user_id, project: :arke_system),
+    with {:ok, user} <- ArkeAuth.ResetPasswordToken.verify(token),
          {:ok, _updated_user} <- User.update_password(user, new_password) do
-      QueryManager.delete(:arke_system, token_unit)
       ResponseManager.send_resp(conn, 200, nil)
     else
-      nil ->
-        ResponseManager.send_resp(conn, 400, nil, %{
-          context: :auth,
-          message: "invalid token"
-        })
-
       {:error, msg} ->
         ResponseManager.send_resp(conn, 400, nil, msg)
     end
@@ -770,17 +707,6 @@ defmodule ArkeServer.AuthController do
 
   defp get_project(project) when is_nil(project), do: :arke_system
   defp get_project(project), do: project
-
-  defp check_token_expiration(%Arke.Core.Unit{} = token) do
-    with {:ok, value} <- DatetimeHandler.parse_datetime(token.data.expiration),
-         true <- DatetimeHandler.after?(value, DatetimeHandler.now(:datetime)) do
-      {:ok, token}
-    else
-      _ -> Error.create(:auth, "expired token")
-    end
-  end
-
-  defp check_token_expiration(_token), do: Error.create(:auth, "invalid token")
 
   defp send_otp_error(conn, {:error, [%{message: "otp expired"}]} = error),
     do: send_error(conn, 410, error)
