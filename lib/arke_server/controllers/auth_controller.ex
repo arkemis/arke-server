@@ -23,7 +23,7 @@ defmodule ArkeServer.AuthController do
   use ArkeServer.Openapi.Spec, module: ArkeServer.Openapi.AuthControllerSpec
 
   alias ArkeServer.ResponseManager
-  alias ArkeAuth.Core.{User, Auth, Otp, TemporaryToken, MemberToken}
+  alias ArkeAuth.Core.{User, Auth, Otp, TemporaryToken}
   alias Arke.Boundary.ArkeManager
   alias ArkeAuth.Boundary.OtpManager
   alias Arke.QueryManager
@@ -242,74 +242,11 @@ defmodule ArkeServer.AuthController do
   #### GET ######
 
   # TODO improve it in arke_auth
-  def signin(conn, %{"token" => token} = _params) do
-    project = get_project(conn.assigns[:arke_project])
+  # A sign-in link carries a TemporaryToken as `token` or `auth_token`; both
+  # go through the same checks.
+  def signin(conn, %{"token" => token}), do: signin_with_link(conn, token)
+  def signin(conn, %{"auth_token" => token}), do: signin_with_link(conn, token)
 
-    with {:ok, member_id} <- MemberToken.consume(project, token),
-         %Arke.Core.Unit{} = member <-
-           QueryManager.get_by(project: project, group: :arke_auth_member, id: member_id),
-         {:ok, member} <- ArkeAuth.Guardian.check_member(member),
-         {:ok, _resource, access_token, refresh_token} <-
-           Auth.create_tokens(Auth.format_member(member)) do
-      content =
-        Map.merge(Arke.StructManager.encode(member, type: :json), %{
-          access_token: access_token,
-          refresh_token: refresh_token
-        })
-
-      update_member_access_time(member)
-      ResponseManager.send_resp(conn, 200, %{content: content})
-    else
-      _ -> ResponseManager.send_resp(conn, 401, "Unauthorized")
-    end
-  end
-
-  def signin(conn, %{"auth_token" => auth_token} = _params) do
-    project = get_project(conn.assigns[:arke_project])
-
-    case TemporaryToken.consume(project, auth_token) do
-      {:error, errors} ->
-        ResponseManager.send_resp(conn, 401, errors)
-
-      {:ok, token} ->
-        case get_member(project, token) do
-          {:error, errors} ->
-            ResponseManager.send_resp(conn, 403, errors)
-
-          {:ok, member} ->
-            with {:ok, _resource, access_token, refresh_token} <-
-                   Auth.create_tokens(Auth.format_member(member)) do
-              content =
-                Map.merge(Arke.StructManager.encode(member, type: :json), %{
-                  access_token: access_token,
-                  refresh_token: refresh_token
-                })
-
-              update_member_access_time(member)
-              ResponseManager.send_resp(conn, 200, %{content: content})
-            else
-              {:error, _type} ->
-                ResponseManager.send_resp(conn, 401, "Unauthorized")
-            end
-        end
-    end
-  end
-
-  defp get_member(_project, %{data: %{link_member: nil}}),
-    do: Error.create(:auth, "member not found")
-
-  defp get_member(project, token) do
-    case QueryManager.get_by(
-           project: project,
-           group: :arke_auth_member,
-           id: token.data.link_member
-         ) do
-      nil -> Error.create(:auth, "member not found")
-      member -> {:ok, member}
-    end
-  end
-
-  #### POST ######
   def signin(conn, %{"username" => username, "password" => password} = params) do
     project = get_project(conn.assigns[:arke_project])
     auth_mode = System.get_env("AUTH_MODE", "default")
@@ -325,6 +262,55 @@ defmodule ArkeServer.AuthController do
   end
 
   def signin(conn, _params), do: ResponseManager.send_resp(conn, 404, nil)
+
+  defp signin_with_link(conn, token) do
+    project = get_project(conn.assigns[:arke_project])
+
+    with {:ok, token} <- TemporaryToken.consume(project, token),
+         {:ok, member} <- get_member(project, token),
+         {:ok, member} <- check_member(member),
+         {:ok, _resource, access_token, refresh_token} <-
+           Auth.create_tokens(Auth.format_member(member)) do
+      content =
+        Map.merge(Arke.StructManager.encode(member, type: :json), %{
+          access_token: access_token,
+          refresh_token: refresh_token
+        })
+
+      update_member_access_time(member)
+      ResponseManager.send_resp(conn, 200, %{content: content})
+    else
+      {:error, :member_not_found, errors} -> ResponseManager.send_resp(conn, 403, errors)
+      {:error, errors} when is_list(errors) -> ResponseManager.send_resp(conn, 401, errors)
+      _ -> ResponseManager.send_resp(conn, 401, "Unauthorized")
+    end
+  end
+
+  defp get_member(_project, %{data: %{link_member: nil}}), do: member_not_found()
+
+  defp get_member(project, token) do
+    case QueryManager.get_by(
+           project: project,
+           group: :arke_auth_member,
+           id: token.data.link_member
+         ) do
+      nil -> member_not_found()
+      member -> {:ok, member}
+    end
+  end
+
+  defp member_not_found() do
+    {:error, errors} = Error.create(:auth, "member not found")
+    {:error, :member_not_found, errors}
+  end
+
+  # An inactive member is refused, as with username and password.
+  defp check_member(member) do
+    case ArkeAuth.Guardian.check_member(member) do
+      {:ok, member} -> {:ok, member}
+      _ -> :unauthorized
+    end
+  end
 
   defp handle_signin_mode(
          conn,
