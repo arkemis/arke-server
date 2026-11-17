@@ -365,12 +365,12 @@ defmodule ArkeServer.AuthControllerTest do
     end
   end
 
-  describe "POST /lib/auth/signin with a member token" do
-    alias ArkeAuth.Core.MemberToken
+  describe "POST /lib/auth/signin with a token" do
+    alias ArkeAuth.Core.TemporaryToken
 
     test "signs in once", %{conn: conn} do
       member = get_member(get_user("user_member_token"))
-      {:ok, token} = MemberToken.issue(:test_schema, member.id)
+      {:ok, %{id: token}} = TemporaryToken.generate_auth_token(:test_schema, member)
 
       body = post(conn, "/lib/auth/signin", token: token) |> json_response(200)
       assert body["content"]["access_token"]
@@ -381,7 +381,7 @@ defmodule ArkeServer.AuthControllerTest do
 
     test "answers 401 for an expired token", %{conn: conn} do
       member = get_member(get_user("user_member_token_expired"))
-      {:ok, token} = MemberToken.issue(:test_schema, member.id, 1)
+      {:ok, %{id: token}} = TemporaryToken.generate_auth_token(:test_schema, member, 1)
       Process.sleep(1_100)
 
       post(conn, "/lib/auth/signin", token: token) |> json_response(401)
@@ -393,9 +393,32 @@ defmodule ArkeServer.AuthControllerTest do
       {_user, member} = ArkeServer.Support.AuthMember.create_user("user_member_token_inactive")
       {:ok, member} = QueryManager.update(member, inactive: true)
       assert member.data.inactive
-      {:ok, token} = MemberToken.issue(:test_schema, member.id)
+      {:ok, %{id: token}} = TemporaryToken.generate_auth_token(:test_schema, member)
 
       post(conn, "/lib/auth/signin", token: token) |> json_response(401)
+    end
+
+    test "token and auth_token are the same single-use token", %{conn: conn} do
+      member = get_member(get_user("user_token_alias"))
+      {:ok, %{id: token}} = TemporaryToken.generate_auth_token(:test_schema, member)
+
+      post(conn, "/lib/auth/signin", token: token) |> json_response(200)
+      post(conn, "/lib/auth/signin", auth_token: token) |> json_response(401)
+      delete_user("user_token_alias")
+    end
+
+    test "auth_token refuses an inactive member", %{conn: conn} do
+      {_user, member} = ArkeServer.Support.AuthMember.create_user("user_auth_token_inactive")
+      {:ok, member} = QueryManager.update(member, inactive: true)
+      {:ok, %{id: token}} = TemporaryToken.generate_auth_token(:test_schema, member)
+
+      post(conn, "/lib/auth/signin", auth_token: token) |> json_response(401)
+    end
+
+    test "answers 403 when the token points at no member", %{conn: conn} do
+      {:ok, %{id: token}} = TemporaryToken.generate_auth_token(:test_schema, "no_such_member")
+
+      post(conn, "/lib/auth/signin", token: token) |> json_response(403)
     end
 
     test "a value in the legacy auth_token field does not sign in", %{conn: conn} do
