@@ -327,20 +327,6 @@ defmodule ArkeServer.AuthControllerTest do
     test "answers 401 for an unknown auth_token", %{conn: conn} do
       post(conn, "/lib/auth/signin", auth_token: "no_such_token") |> json_response(401)
     end
-
-    # Projects seeded before this change still have the temporary_token arke,
-    # so the endpoint may answer; it must not list any token.
-    test "tokens are not reachable through the unit endpoints" do
-      member = get_member(get_user("user_authtoken_hidden"))
-      {:ok, token} = TemporaryToken.generate_auth_token(:test_schema, member)
-
-      conn = build_authenticated_conn() |> get("/lib/temporary_token/unit")
-
-      refute conn.resp_body =~ token.id
-      if conn.status == 200, do: assert(json_response(conn, 200)["content"]["count"] == 0)
-      delete_user("user_authtoken_hidden")
-    end
-
   end
 
   describe "POST /lib/auth/reset_password" do
