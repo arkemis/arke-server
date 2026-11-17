@@ -3,7 +3,9 @@
 ## To the auth hardening release (from 0.5.x)
 
 This release requires the matching `arke_auth` release; read its
-`UPGRADING.md` first. The points below are what changes on the HTTP side.
+`UPGRADING.md` first, including what the release does not cover (writes to
+users, members and permissions). The points below are what changes on the
+HTTP side.
 
 ### Configuration
 
